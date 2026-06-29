@@ -5,7 +5,12 @@ const ApiError = require("../../utils/ApiError");
 
 // ─── Role mapping: frontend sends lowercase, DB stores uppercase ──────────────
 const normalizeRole = (role) => {
-  const map = { student: "STUDENT", instructor: "INSTRUCTOR", admin: "ADMIN" };
+  const map = { 
+    student: "STUDENT", 
+    teacher: "INSTRUCTOR", 
+    instructor: "INSTRUCTOR", 
+    admin: "ADMIN" 
+  };
   return map[role?.toLowerCase()] || "STUDENT";
 };
 
