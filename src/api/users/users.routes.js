@@ -6,6 +6,9 @@ const ApiResponse = require("../../utils/ApiResponse");
 const { protect } = require("../../middleware/auth.middleware");
 const { getMe, updateMe } = require("./users.controller");
 
+const { uploadToCloudinary } = require("../../utils/cloudinary");
+const UserService = require("./users.service");
+
 // GET  /api/v1/users/me — fetch profile
 router.get("/me", protect, getMe);
 
@@ -30,13 +33,15 @@ router.patch(
       );
     }
 
-    // TODO: stream req.file.buffer → S3 / Supabase Storage and persist URL in DB
-    // const avatarUrl = await uploadToStorage(req.file, "avatars");
-    // await UserService.updateAvatar(req.user.id, avatarUrl);
+    // Stream req.file.buffer → Cloudinary and update avatar url in Supabase DB
+    const uploadResult = await uploadToCloudinary(req.file.buffer, "avatars", "image");
+    const updatedUser = await UserService.updateProfile(req.user.id, { avatar: uploadResult.secure_url });
 
     return res.status(200).json(
       new ApiResponse(200, {
+        user: updatedUser,
         originalName: req.file.originalname,
+        secureUrl: uploadResult.secure_url,
         mimeType: req.file.mimetype,
         sizeBytes: req.file.size,
       }, "Avatar uploaded successfully")

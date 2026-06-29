@@ -1,4 +1,4 @@
-﻿const dotenv = require("dotenv");
+const dotenv = require("dotenv");
 dotenv.config();
 
 const config = {
@@ -37,6 +37,13 @@ const config = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_REGION,
     bucket: process.env.AWS_S3_BUCKET,
+  },
+
+  // Cloudinary
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 
   // Email

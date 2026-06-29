@@ -23,6 +23,9 @@ router.post("/",       protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), crea
 // Upload / replace a course cover image (instructors & admins only)
 // Field : thumbnail  (JPEG | PNG | WEBP — max 5 MB)
 // ─────────────────────────────────────────────────────────────────────────────
+const { uploadToCloudinary } = require("../../utils/cloudinary");
+const CourseService = require("./courses.service");
+
 router.post(
   "/:courseId/thumbnail",
   protect,
@@ -37,14 +40,17 @@ router.post(
 
     const { courseId } = req.params;
 
-    // TODO: upload req.file.buffer to S3/Supabase under courses/{courseId}/thumbnail
-    // const thumbnailUrl = await uploadToStorage(req.file, `courses/${courseId}`);
-    // await CourseService.updateThumbnail(courseId, thumbnailUrl, req.user.id);
+    // Stream thumbnail buffer to Cloudinary
+    const uploadResult = await uploadToCloudinary(req.file.buffer, "courses", "image");
+    
+    // Update thumbnail URL in Supabase database
+    const updatedCourse = await CourseService.updateThumbnail(courseId, uploadResult.secure_url, req.user.id);
 
     return res.status(200).json(
       new ApiResponse(200, {
-        courseId,
+        course: updatedCourse,
         originalName: req.file.originalname,
+        secureUrl: uploadResult.secure_url,
         mimeType: req.file.mimetype,
         sizeBytes: req.file.size,
       }, "Course thumbnail uploaded successfully")

@@ -145,4 +145,26 @@ const createCourse = async ({ title, description, price, categoryId, instructorI
   };
 };
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse };
+// PATCH /api/v1/courses/:courseId/thumbnail — update course thumbnail
+const updateThumbnail = async (courseId, thumbnailUrl, instructorId) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+  if (course.instructorId !== instructorId) {
+    throw new ApiError(403, "You do not have permission to modify this course.");
+  }
+
+  const updated = await prisma.course.update({
+    where: { id: courseId },
+    data: { thumbnail: thumbnailUrl },
+    select: courseSelect,
+  });
+
+  return {
+    ...updated,
+    enrollmentCount: updated._count.enrollments,
+    lessonCount: updated._count.lessons,
+    _count: undefined,
+  };
+};
+
+module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateThumbnail };
