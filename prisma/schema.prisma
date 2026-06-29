@@ -76,6 +76,7 @@ model Course {
   title        String
   description  String?
   thumbnail    String?
+  videoUrl     String?
   price        Decimal      @default(0)
   status       CourseStatus @default(DRAFT)
   instructorId String

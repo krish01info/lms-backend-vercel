@@ -6,6 +6,7 @@ const courseSelect = {
   title: true,
   description: true,
   thumbnail: true,
+  videoUrl: true,
   price: true,
   status: true,
   createdAt: true,
@@ -124,7 +125,7 @@ const getEnrolledCourses = async (userId) => {
 };
 
 // POST /api/v1/courses — create new course
-const createCourse = async ({ title, description, price, categoryId, instructorId, status }) => {
+const createCourse = async ({ title, description, price, categoryId, instructorId, status, videoUrl }) => {
   const course = await prisma.course.create({
     data: {
       title,
@@ -133,6 +134,7 @@ const createCourse = async ({ title, description, price, categoryId, instructorI
       status: status || "PUBLISHED", // Default to PUBLISHED for ease of visibility in frontend
       instructorId,
       categoryId: categoryId || null,
+      videoUrl: videoUrl || null,
     },
     select: courseSelect,
   });
