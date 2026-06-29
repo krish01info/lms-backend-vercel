@@ -15,15 +15,21 @@ const normalizeRole = (role) => {
 };
 
 // ─── Safe user object (no password) ──────────────────────────────────────────
-const safeUser = (user) => ({
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  role: user.role.toLowerCase(), // send lowercase to frontend
-  avatar: user.avatar || null,
-  isVerified: user.isVerified,
-  createdAt: user.createdAt,
-});
+const safeUser = (user) => {
+  let role = user.role.toLowerCase();
+  if (role === "instructor") {
+    role = "teacher";
+  }
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role,
+    avatar: user.avatar || null,
+    isVerified: user.isVerified,
+    createdAt: user.createdAt,
+  };
+};
 
 // ─── Register ─────────────────────────────────────────────────────────────────
 const register = async ({ name, email, password, role }) => {
