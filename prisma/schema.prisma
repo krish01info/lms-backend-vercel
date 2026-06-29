@@ -1,4 +1,4 @@
-﻿generator client {
+generator client {
   provider = "prisma-client-js"
 }
 
@@ -290,3 +290,4 @@ model Payment {
 
   @@map("payments")
 }
+
