@@ -14,6 +14,7 @@ const userRoutes        = require("./api/users/users.routes");
 const courseRoutes      = require("./api/courses/courses.routes");
 const lessonRoutes      = require("./api/lessons/lessons.routes");
 const assignmentRoutes  = require("./api/assignments/assignments.routes");
+const uploadRoutes      = require("./api/uploads/uploads.routes");
 
 const app = express();
 
@@ -81,6 +82,7 @@ app.use(`${API}/users`,       userRoutes);       // PATCH /users/me/avatar  + GE
 app.use(`${API}/courses`,     courseRoutes);     // GET /courses + POST /courses/:id/thumbnail
 app.use(`${API}/sections/:sectionId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
+app.use(`${API}/uploads`,     uploadRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
