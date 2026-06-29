@@ -123,4 +123,26 @@ const getEnrolledCourses = async (userId) => {
   }));
 };
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses };
+// POST /api/v1/courses — create new course
+const createCourse = async ({ title, description, price, categoryId, instructorId, status }) => {
+  const course = await prisma.course.create({
+    data: {
+      title,
+      description,
+      price: price ? parseFloat(price) : 0,
+      status: status || "PUBLISHED", // Default to PUBLISHED for ease of visibility in frontend
+      instructorId,
+      categoryId: categoryId || null,
+    },
+    select: courseSelect,
+  });
+
+  return {
+    ...course,
+    enrollmentCount: 0,
+    lessonCount: 0,
+    _count: undefined,
+  };
+};
+
+module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse };

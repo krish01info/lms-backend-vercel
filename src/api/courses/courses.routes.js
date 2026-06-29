@@ -9,13 +9,14 @@ const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
 const { protect, requireRole, optionalAuth } = require("../../middleware/auth.middleware");
 const ROLES = require("../../constants/roles");
-const { getCourses, getCourseById, getMyCourses, getEnrolledCourses } = require("./courses.controller");
+const { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse } = require("./courses.controller");
 
 // ─── GET /api/v1/courses  — public browse with optional auth ──────────────────
 router.get("/",        optionalAuth, getCourses);
 router.get("/enrolled", protect, getEnrolledCourses);   // student enrolled courses
 router.get("/my",       protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), getMyCourses);
 router.get("/:id",     optionalAuth, getCourseById);
+router.post("/",       protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), createCourse);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/courses/:courseId/thumbnail

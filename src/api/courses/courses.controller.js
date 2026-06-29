@@ -27,4 +27,18 @@ const getCourseById = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { course }, "Course fetched successfully."));
 });
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses };
+// POST /api/v1/courses
+const createCourse = asyncHandler(async (req, res) => {
+  const { title, description, price, categoryId, status } = req.body;
+  const course = await CourseService.createCourse({
+    title,
+    description,
+    price,
+    categoryId,
+    instructorId: req.user.id,
+    status
+  });
+  return res.status(201).json(new ApiResponse(201, { course }, "Course created successfully."));
+});
+
+module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse };
