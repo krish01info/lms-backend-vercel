@@ -125,7 +125,27 @@ const getEnrolledCourses = async (userId) => {
 };
 
 // POST /api/v1/courses — create new course
-const createCourse = async ({ title, description, price, categoryId, instructorId, status, videoUrl }) => {
+const createCourse = async ({ title, description, price, categoryId, category, instructorId, status, videoUrl }) => {
+  let resolvedCategoryId = categoryId || null;
+
+  if (!resolvedCategoryId && category) {
+    const slug = category.toLowerCase().trim().replace(/ & /g, '-').replace(/ /g, '-');
+    const formattedName = category
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    const dbCategory = await prisma.category.upsert({
+      where: { slug },
+      update: {},
+      create: {
+        name: formattedName,
+        slug,
+      },
+    });
+    resolvedCategoryId = dbCategory.id;
+  }
+
   const course = await prisma.course.create({
     data: {
       title,
@@ -133,7 +153,7 @@ const createCourse = async ({ title, description, price, categoryId, instructorI
       price: price ? parseFloat(price) : 0,
       status: status || "PUBLISHED", // Default to PUBLISHED for ease of visibility in frontend
       instructorId,
-      categoryId: categoryId || null,
+      categoryId: resolvedCategoryId,
       videoUrl: videoUrl || null,
     },
     select: courseSelect,
