@@ -29,7 +29,7 @@ const getCourseById = asyncHandler(async (req, res) => {
 
 // POST /api/v1/courses
 const createCourse = asyncHandler(async (req, res) => {
-  const { title, description, price, categoryId, category, status, videoUrl } = req.body;
+  const { title, description, price, categoryId, category, status, videoUrl, thumbnail } = req.body;
   const course = await CourseService.createCourse({
     title,
     description,
@@ -38,7 +38,8 @@ const createCourse = asyncHandler(async (req, res) => {
     category,
     instructorId: req.user.id,
     status,
-    videoUrl
+    videoUrl,
+    thumbnail
   });
   return res.status(201).json(new ApiResponse(201, { course }, "Course created successfully."));
 });

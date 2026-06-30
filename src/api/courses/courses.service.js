@@ -125,7 +125,7 @@ const getEnrolledCourses = async (userId) => {
 };
 
 // POST /api/v1/courses — create new course
-const createCourse = async ({ title, description, price, categoryId, category, instructorId, status, videoUrl }) => {
+const createCourse = async ({ title, description, price, categoryId, category, instructorId, status, videoUrl, thumbnail }) => {
   let resolvedCategoryId = categoryId || null;
 
   if (!resolvedCategoryId && category) {
@@ -151,10 +151,11 @@ const createCourse = async ({ title, description, price, categoryId, category, i
       title,
       description,
       price: price ? parseFloat(price) : 0,
-      status: status || "PUBLISHED", // Default to PUBLISHED for ease of visibility in frontend
+      status: status || "PUBLISHED",
       instructorId,
       categoryId: resolvedCategoryId,
       videoUrl: videoUrl || null,
+      thumbnail: thumbnail || null,
     },
     select: courseSelect,
   });
