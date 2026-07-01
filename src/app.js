@@ -82,7 +82,7 @@ app.use(`${API}/auth`,        authRoutes);
 app.use(`${API}/users`,       userRoutes);       // PATCH /users/me/avatar  + GET|PATCH /users/me
 app.use(`${API}/courses`,     courseRoutes);     // GET /courses + POST /courses/:id/thumbnail
 app.use(`${API}/enrollments`, enrollmentRoutes);
-app.use(`${API}/sections/:sectionId/lessons`, lessonRoutes);
+app.use(`${API}/courses/:courseId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
 app.use(`${API}/uploads`,     uploadRoutes);
  

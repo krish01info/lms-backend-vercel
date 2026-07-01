@@ -179,9 +179,59 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// checkEnrollment — verifies student has ACTIVE enrollment in the course
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @middleware checkEnrollment
+ * Blocks access if student's enrollment is CANCELLED or doesn't exist.
+ * Must be used AFTER protect middleware.
+ * Expects courseId in req.params.courseId
+ *
+ * @throws 403 – no active enrollment found
+ */
+const checkEnrollment = async (req, res, next) => {
+  try {
+    // Instructors and Admins skip enrollment check
+    if ([ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(req.user.role)) {
+      return next()
+    }
+
+    const { PrismaClient } = require('@prisma/client')
+    const prisma = new PrismaClient()
+
+    const courseId = req.params.courseId
+
+    if (!courseId) {
+      return next(new ApiError(HTTP_STATUS.BAD_REQUEST, 'courseId is required.'))
+    }
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        userId: req.user.id,
+        courseId: courseId,
+        status: 'ACTIVE'          // ← CANCELLED enrollments are blocked here
+      }
+    })
+
+    if (!enrollment) {
+      return next(new ApiError(
+        HTTP_STATUS.FORBIDDEN,
+        'Access denied. You are not enrolled in this course or your enrollment has been cancelled.'
+      ))
+    }
+
+    req.enrollment = enrollment   // attach for use in controllers
+    next()
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   protect,
   requireRole,
   requireOwnerOrRole,
   optionalAuth,
+  checkEnrollment,
 };
