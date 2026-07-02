@@ -1,68 +1,37 @@
 const express = require("express");
 const router = express.Router();
 const { handleUpload, uploadSubmission } = require("../../middleware/upload.middleware");
-const asyncHandler = require("../../utils/asyncHandler");
-const ApiResponse = require("../../utils/ApiResponse");
 const { protect, requireRole } = require("../../middleware/auth.middleware");
 const ROLES = require("../../constants/roles");
+const {
+  getAssignments,
+  getAssignmentById,
+  createAssignment,
+  submitAssignment,
+  gradeSubmission,
+  getSubmissions,
+  getMySubmissions,
+} = require("./assignments.controller");
 
-// ─────────────────────────────────────────────────────────────────────────────
-// POST /api/v1/assignments/:assignmentId/submit
-// Student submits their assignment (single file)
-// Field : submission  (PDF | DOCX | DOC | PNG | JPEG | ZIP — max 20 MB)
-// ─────────────────────────────────────────────────────────────────────────────
-router.post(
-  "/:assignmentId/submit",
-  protect,
-  handleUpload(uploadSubmission),
-  asyncHandler(async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json(
-        new ApiResponse(400, null, "No file received. Attach your submission with field name 'submission'.")
-      );
-    }
+// GET  /api/v1/assignments                            — list (filter by courseId)
+router.get("/", protect, getAssignments);
 
-    const { assignmentId } = req.params;
+// GET  /api/v1/assignments/my-submissions             — student's own submissions
+router.get("/my-submissions", protect, requireRole(ROLES.STUDENT), getMySubmissions);
 
-    // TODO:
-    // 1. Upload file to S3/Supabase: submissions/{assignmentId}/{userId}/{filename}
-    // 2. Create Submission record in DB:
-    //    await SubmissionService.create({ assignmentId, userId: req.user.id, fileUrl });
+// GET  /api/v1/assignments/:id                        — single assignment
+router.get("/:id", protect, getAssignmentById);
 
-    return res.status(201).json(
-      new ApiResponse(201, {
-        assignmentId,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        sizeBytes: req.file.size,
-        submittedAt: new Date().toISOString(),
-      }, "Assignment submitted successfully")
-    );
-  })
-);
+// POST /api/v1/assignments                            — instructor creates
+router.post("/", protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), createAssignment);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/v1/assignments/submissions/:submissionId/grade
-// Instructor grades a student submission (no file needed, just score)
-// ─────────────────────────────────────────────────────────────────────────────
-router.patch(
-  "/submissions/:submissionId/grade",
-  protect,
-  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
-  asyncHandler(async (req, res) => {
-    const { submissionId } = req.params;
-    const { grade, feedback } = req.body;
+// POST /api/v1/assignments/:assignmentId/submit       — student submits file
+router.post("/:assignmentId/submit", protect, requireRole(ROLES.STUDENT), handleUpload(uploadSubmission), submitAssignment);
 
-    if (grade === undefined || grade === null) {
-      return res.status(400).json(new ApiResponse(400, null, "Grade is required."));
-    }
+// PATCH /api/v1/assignments/submissions/:submissionId/grade  — instructor grades
+router.patch("/submissions/:submissionId/grade", protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), gradeSubmission);
 
-    // TODO: await SubmissionService.grade(submissionId, { grade, feedback, gradedBy: req.user.id });
-
-    return res.status(200).json(
-      new ApiResponse(200, { submissionId, grade, feedback }, "Submission graded successfully")
-    );
-  })
-);
+// GET  /api/v1/assignments/:assignmentId/submissions  — instructor views all submissions
+router.get("/:assignmentId/submissions", protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), getSubmissions);
 
 module.exports = router;

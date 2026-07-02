@@ -16,7 +16,8 @@ const enrollmentRoutes  = require("./api/enrollments/enrollments.routes");
 const lessonRoutes      = require("./api/lessons/lessons.routes");
 const assignmentRoutes  = require("./api/assignments/assignments.routes");
 const uploadRoutes      = require("./api/uploads/uploads.routes");
- 
+const quizRoutes = require("./api/quizzes/quizzes.routes");
+const notificationRoutes = require("./api/notifications/notifications.routes");
 const app = express();
  
 app.use(passport.initialize());
@@ -76,16 +77,18 @@ app.get("/health", (req, res) => {
 });
  
 // ─── API Routes ───────────────────────────────────────────────────────────────
+// ─── API Routes ───────────────────────────────────────────────────────────────
 const API = "/api/v1";
- 
-app.use(`${API}/auth`,        authRoutes);
-app.use(`${API}/users`,       userRoutes);       // PATCH /users/me/avatar  + GET|PATCH /users/me
-app.use(`${API}/courses`,     courseRoutes);     // GET /courses + POST /courses/:id/thumbnail
+
+app.use(`${API}/auth`, authRoutes);
+app.use(`${API}/users`, userRoutes);
+app.use(`${API}/courses`, courseRoutes);
 app.use(`${API}/enrollments`, enrollmentRoutes);
 app.use(`${API}/courses/:courseId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
-app.use(`${API}/uploads`,     uploadRoutes);
- 
+app.use(`${API}/uploads`, uploadRoutes);
+app.use(`${API}/quizzes`, quizRoutes);               // Add this
+app.use(`${API}/notifications`, notificationRoutes); // Add this
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -110,3 +113,9 @@ const notificationRoutes = require("./api/notifications/notifications.routes");
 
 // mount (with the other app.use lines)
 app.use(`${API}/notifications`, notificationRoutes);
+
+const assignmentRoutes = require("./api/assignments/assignments.routes");
+const quizRoutes      = require("./api/quizzes/quizzes.routes");       // your teammate's
+
+app.use(`${API}/assignments`, assignmentRoutes);
+app.use(`${API}/quizzes`, quizRoutes);
