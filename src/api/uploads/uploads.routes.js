@@ -10,14 +10,19 @@ const ApiResponse = require("../../utils/ApiResponse");
  */
 router.get("/sign-cloudinary", protect, (req, res) => {
   const timestamp = Math.round(new Date().getTime() / 1000);
-  const folder = "learnflow/courses/videos";
+
+  // Allow frontend to specify upload type: video (default), image, raw
+  const type = req.query.type || "video";
+  const folderMap = {
+    video: "learnflow/courses/videos",
+    image: "learnflow/courses/thumbnails",
+    raw:   "learnflow/courses/resources",
+  };
+  const folder = folderMap[type] || "learnflow/courses/videos";
 
   // Generate signature using Cloudinary API Secret
   const signature = cloudinary.utils.api_sign_request(
-    {
-      timestamp,
-      folder,
-    },
+    { timestamp, folder },
     cloudinary.config().api_secret
   );
 
