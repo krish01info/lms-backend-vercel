@@ -16,7 +16,7 @@ const enrollmentRoutes  = require("./api/enrollments/enrollments.routes");
 const lessonRoutes      = require("./api/lessons/lessons.routes");
 const assignmentRoutes  = require("./api/assignments/assignments.routes");
 const uploadRoutes      = require("./api/uploads/uploads.routes");
- 
+const quizRoutes = require("./api/quizzes/quizzes.routes");
 const app = express();
  
 app.use(passport.initialize());
@@ -85,6 +85,7 @@ app.use(`${API}/enrollments`, enrollmentRoutes);
 app.use(`${API}/courses/:courseId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
 app.use(`${API}/uploads`,     uploadRoutes);
+app.use(`${API}/quizzes`, quizRoutes);
  
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -102,5 +103,5 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
- 
+
 module.exports = app;
