@@ -104,3 +104,9 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
 });
  
 module.exports = app;
+
+js// import (with the other requires at top)
+const notificationRoutes = require("./api/notifications/notifications.routes");
+
+// mount (with the other app.use lines)
+app.use(`${API}/notifications`, notificationRoutes);
