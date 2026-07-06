@@ -16,6 +16,7 @@ const enrollmentRoutes  = require("./api/enrollments/enrollments.routes");
 const lessonRoutes      = require("./api/lessons/lessons.routes");
 const assignmentRoutes  = require("./api/assignments/assignments.routes");
 const uploadRoutes      = require("./api/uploads/uploads.routes");
+const progressRoutes    = require("./api/progress/progress.routes");
  
 const app = express();
  
@@ -85,6 +86,7 @@ app.use(`${API}/enrollments`, enrollmentRoutes);
 app.use(`${API}/courses/:courseId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
 app.use(`${API}/uploads`,     uploadRoutes);
+app.use(`${API}/progress`,    progressRoutes);
  
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
