@@ -1,4 +1,4 @@
-﻿const { prisma } = require("../../config/database");
+const { prisma } = require("../../config/database");
 const ApiError = require("../../utils/ApiError");
 const ROLES = require("../../constants/roles");
 
@@ -10,6 +10,7 @@ const quizSelect = {
   courseId: true,
   timeLimit: true,
   passMark: true,
+  status: true,
   createdAt: true,
   updatedAt: true,
   course: { select: { id: true, title: true } },
@@ -61,9 +62,16 @@ const createQuiz = async ({ title, courseId, timeLimit, passMark, userId, role }
 };
 
 // GET /api/v1/quizzes?courseId=&page=&limit=
-const getQuizzes = async ({ courseId, page = 1, limit = 12 } = {}) => {
+// STUDENT (or unauthenticated) callers only ever see ACTIVE quizzes.
+// INSTRUCTOR/ADMIN/SUPER_ADMIN see all statuses so archived quizzes they
+// own remain visible (with an "ARCHIVED" badge) instead of disappearing.
+const getQuizzes = async ({ courseId, page = 1, limit = 12, role } = {}) => {
   const skip = (Number(page) - 1) * Number(limit);
-  const where = { ...(courseId && { courseId }) };
+  const isPrivileged = [ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(role);
+  const where = {
+    ...(!isPrivileged && { status: "ACTIVE" }),
+    ...(courseId && { courseId }),
+  };
 
   const [quizzes, total] = await Promise.all([
     prisma.quiz.findMany({
@@ -127,9 +135,12 @@ const deleteQuiz = async (id, userId, role) => {
 
   await assertCourseOwnership(existing.courseId, userId, role);
 
-  await prisma.quiz.delete({ where: { id } }); // cascades to Question + QuizAttempt (schema: onDelete: Cascade on Question; check attempts too)
+  await prisma.quiz.update({
+    where: { id },
+    data: { status: "ARCHIVED" },
+  });
 
   return { id };
 };
 
-module.exports = { createQuiz, getQuizzes, getQuizById, updateQuiz, deleteQuiz };// code here
+module.exports = { createQuiz, getQuizzes, getQuizById, updateQuiz, deleteQuiz, assertCourseOwnership };

@@ -22,7 +22,12 @@ const createQuiz = asyncHandler(async (req, res) => {
 const getQuizzes = asyncHandler(async (req, res) => {
   const { courseId, page, limit } = req.query;
 
-  const result = await QuizService.getQuizzes({ courseId, page, limit });
+  const result = await QuizService.getQuizzes({
+    courseId,
+    page,
+    limit,
+    role: req.user?.role,
+  });
 
   return res.status(200).json(new ApiResponse(200, result, "Quizzes fetched successfully."));
 });

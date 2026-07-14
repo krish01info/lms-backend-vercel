@@ -16,8 +16,9 @@ const enrollmentRoutes  = require("./api/enrollments/enrollments.routes");
 const lessonRoutes      = require("./api/lessons/lessons.routes");
 const assignmentRoutes  = require("./api/assignments/assignments.routes");
 const uploadRoutes      = require("./api/uploads/uploads.routes");
-const uploadRoutes = require("./api/uploads/uploads.routes");
 const quizRoutes = require("./api/quizzes/quizzes.routes");
+const attemptRoutes = require("./api/quizzes/attempts.routes");
+const questionsRoutes = require("./api/quizzes/questions.routes");
 const progressRoutes = require("./api/progress/progress.routes");
 const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes = require("./api/attendance/attendance.routes");
@@ -89,8 +90,9 @@ app.use(`${API}/enrollments`, enrollmentRoutes);
 app.use(`${API}/courses/:courseId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
 app.use(`${API}/uploads`,     uploadRoutes);
-app.use(`${API}/uploads`, uploadRoutes);
+app.use(`${API}`, questionsRoutes);        // /quizzes/:quizId/questions, /questions/:id
 app.use(`${API}/quizzes`, quizRoutes);
+app.use(`${API}/quizzes`, attemptRoutes);  // /:quizId/attempts, /:quizId/attempts/me
 app.use(`${API}/progress`, progressRoutes);
 app.use(`${API}/certificates`, certificateRoutes);
 app.use(`${API}/attendance`, attendanceRoutes);

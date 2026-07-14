@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── ENUMS ───────────────────────────────────────────
@@ -14,6 +15,11 @@ enum Role {
   INSTRUCTOR
   ADMIN
   SUPER_ADMIN
+}
+
+enum QuizStatus {
+  ACTIVE
+  ARCHIVED
 }
 
 enum CourseStatus {
@@ -169,6 +175,7 @@ model Quiz {
   courseId  String
   timeLimit Int?     // in minutes
   passMark  Int      @default(70) // percentage
+  status    QuizStatus @default(ACTIVE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -207,6 +214,7 @@ model QuizAttempt {
   user      User @relation(fields: [userId], references: [id])
   quiz      Quiz @relation(fields: [quizId], references: [id])
 
+  @@unique([userId, quizId])
   @@map("quiz_attempts")
 }
 
