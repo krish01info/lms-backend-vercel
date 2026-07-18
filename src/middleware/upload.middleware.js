@@ -1,6 +1,6 @@
 const multer = require("multer");
 const path = require("path");
-const { ApiError } = require("../utils/ApiError");
+const ApiError = require("../utils/ApiError");
 
 // ─── Storage: memory (stream to S3 / Supabase Storage) ───────────────────────
 const memoryStorage = multer.memoryStorage();
