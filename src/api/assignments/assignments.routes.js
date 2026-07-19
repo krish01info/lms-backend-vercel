@@ -1,68 +1,92 @@
 const express = require("express");
 const router = express.Router();
 const { handleUpload, uploadSubmission } = require("../../middleware/upload.middleware");
-const asyncHandler = require("../../utils/asyncHandler");
-const ApiResponse = require("../../utils/ApiResponse");
 const { protect, requireRole } = require("../../middleware/auth.middleware");
+const validate = require("../../middleware/validate.middleware");
 const ROLES = require("../../constants/roles");
+const {
+  createAssignmentSchema,
+  updateAssignmentSchema,
+  gradeSubmissionSchema,
+} = require("./assignments.validation");
+const {
+  createAssignment,
+  getAssignments,
+  getAssignmentById,
+  updateAssignment,
+  deleteAssignment,
+  submitAssignment,
+  getSubmissions,
+  getSubmissionById,
+  gradeSubmission,
+} = require("./assignments.controller");
+
+// ─── Assignment CRUD ──────────────────────────────────────────────────────────
+
+// POST /api/v1/assignments — instructor/admin, courseId in body
+router.post(
+  "/",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  validate(createAssignmentSchema),
+  createAssignment
+);
+
+// GET /api/v1/assignments?courseId=&page=&limit= — instructor sees their own
+// courses' assignments (or all, if courseId given & they own it); student sees
+// assignments for courses they're enrolled in.
+router.get("/", protect, getAssignments);
+
+// GET /api/v1/assignments/:id
+router.get("/:id", protect, getAssignmentById);
+
+// PATCH /api/v1/assignments/:id — instructor (owner)/admin
+router.patch(
+  "/:id",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  validate(updateAssignmentSchema),
+  updateAssignment
+);
+
+// DELETE /api/v1/assignments/:id — instructor (owner)/admin
+router.delete("/:id", protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), deleteAssignment);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/assignments/:assignmentId/submit
-// Student submits their assignment (single file)
+// Student submits (or resubmits, before the due date) their assignment.
 // Field : submission  (PDF | DOCX | DOC | PNG | JPEG | ZIP — max 20 MB)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post(
   "/:assignmentId/submit",
   protect,
   handleUpload(uploadSubmission),
-  asyncHandler(async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json(
-        new ApiResponse(400, null, "No file received. Attach your submission with field name 'submission'.")
-      );
-    }
-
-    const { assignmentId } = req.params;
-
-    // TODO:
-    // 1. Upload file to S3/Supabase: submissions/{assignmentId}/{userId}/{filename}
-    // 2. Create Submission record in DB:
-    //    await SubmissionService.create({ assignmentId, userId: req.user.id, fileUrl });
-
-    return res.status(201).json(
-      new ApiResponse(201, {
-        assignmentId,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        sizeBytes: req.file.size,
-        submittedAt: new Date().toISOString(),
-      }, "Assignment submitted successfully")
-    );
-  })
+  submitAssignment
 );
+
+// GET /api/v1/assignments/:assignmentId/submissions — instructor (owner)/admin
+// Lists every student's submission for one assignment, ungraded first.
+router.get(
+  "/:assignmentId/submissions",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  getSubmissions
+);
+
+// GET /api/v1/assignments/submissions/:submissionId — instructor/admin, or the
+// student who owns the submission.
+router.get("/submissions/:submissionId", protect, getSubmissionById);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PATCH /api/v1/assignments/submissions/:submissionId/grade
-// Instructor grades a student submission (no file needed, just score)
+// Instructor grades a student submission — grade (0-100) + optional feedback.
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch(
   "/submissions/:submissionId/grade",
   protect,
   requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
-  asyncHandler(async (req, res) => {
-    const { submissionId } = req.params;
-    const { grade, feedback } = req.body;
-
-    if (grade === undefined || grade === null) {
-      return res.status(400).json(new ApiResponse(400, null, "Grade is required."));
-    }
-
-    // TODO: await SubmissionService.grade(submissionId, { grade, feedback, gradedBy: req.user.id });
-
-    return res.status(200).json(
-      new ApiResponse(200, { submissionId, grade, feedback }, "Submission graded successfully")
-    );
-  })
+  validate(gradeSubmissionSchema),
+  gradeSubmission
 );
 
 module.exports = router;
