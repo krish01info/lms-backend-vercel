@@ -49,6 +49,14 @@ const documentFilter = (req, file, cb) => {
   );
 };
 
+/** Allow only PDF files */
+const pdfFilter = (req, file, cb) => {
+  const extOk = path.extname(file.originalname).toLowerCase() === ".pdf";
+  const mimeOk = file.mimetype === "application/pdf";
+  if (extOk && mimeOk) return cb(null, true);
+  cb(new ApiError(400, "Only PDF files are allowed"));
+};
+
 // ─── Multer instance builder ──────────────────────────────────────────────────
 const buildUploader = ({ filter, maxSizeMB = 5, useMemory = true }) =>
   multer({
@@ -111,6 +119,16 @@ const uploadCourseResources = buildUploader({
   maxSizeMB: 10,
 }).array("resources", 10);
 
+/**
+ * Upload a single AI Tutor PDF.
+ * Field name: "pdf"
+ * Max size  : 20 MB
+ */
+const uploadAiTutorPdf = buildUploader({
+  filter: pdfFilter,
+  maxSizeMB: 20,
+}).single("pdf");
+
 // ─── Multer error wrapper ─────────────────────────────────────────────────────
 /**
  * Wraps a multer upload function and converts MulterErrors into ApiErrors
@@ -144,5 +162,6 @@ module.exports = {
   uploadLessonVideo,
   uploadSubmission,
   uploadCourseResources,
+  uploadAiTutorPdf,
   handleUpload,
 };

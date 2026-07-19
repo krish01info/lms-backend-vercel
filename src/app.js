@@ -20,6 +20,7 @@ const progressRoutes    = require("./api/progress/progress.routes");
 const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes = require("./api/attendance/attendance.routes");
 const paymentRoutes = require("./api/payments/payments.routes");
+const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
  
 const app = express();
  
@@ -93,6 +94,7 @@ app.use(`${API}/progress`,    progressRoutes);
 app.use(`${API}/certificates`, certificateRoutes);
 app.use(`${API}/attendance`, attendanceRoutes);
 app.use(`${API}/payments`, paymentRoutes);
+app.use(`${API}/ai-tutor`, aiTutorRoutes);
  
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
