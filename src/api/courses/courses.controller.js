@@ -1,6 +1,7 @@
 const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
 const CourseService = require("./courses.service");
+const ROLES = require("../../constants/roles");
 
 // GET /api/v1/courses
 const getCourses = asyncHandler(async (req, res) => {
@@ -39,9 +40,50 @@ const createCourse = asyncHandler(async (req, res) => {
     instructorId: req.user.id,
     status,
     videoUrl,
-    thumbnail
+    thumbnail,
   });
   return res.status(201).json(new ApiResponse(201, { course }, "Course created successfully."));
 });
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse };
+// PATCH /api/v1/courses/:id — update course details (instructor owns it, or admin)
+const updateCourse = asyncHandler(async (req, res) => {
+  const isAdmin = req.user.role === ROLES.ADMIN || req.user.role === ROLES.SUPER_ADMIN;
+  const course = await CourseService.updateCourse(
+    req.params.id,
+    req.user.id,
+    req.body,
+    isAdmin
+  );
+  return res.status(200).json(new ApiResponse(200, { course }, "Course updated successfully."));
+});
+
+// PATCH /api/v1/courses/:id/status — change course status (DRAFT | PUBLISHED | ARCHIVED)
+const updateCourseStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  const isAdmin = req.user.role === ROLES.ADMIN || req.user.role === ROLES.SUPER_ADMIN;
+  const course = await CourseService.updateCourseStatus(
+    req.params.id,
+    req.user.id,
+    status,
+    isAdmin
+  );
+  return res.status(200).json(new ApiResponse(200, { course }, `Course status updated to ${status}.`));
+});
+
+// DELETE /api/v1/courses/:id — delete a course
+const deleteCourse = asyncHandler(async (req, res) => {
+  const isAdmin = req.user.role === ROLES.ADMIN || req.user.role === ROLES.SUPER_ADMIN;
+  await CourseService.deleteCourse(req.params.id, req.user.id, isAdmin);
+  return res.status(200).json(new ApiResponse(200, null, "Course deleted successfully."));
+});
+
+module.exports = {
+  getCourses,
+  getCourseById,
+  getMyCourses,
+  getEnrolledCourses,
+  createCourse,
+  updateCourse,
+  updateCourseStatus,
+  deleteCourse,
+};
