@@ -15,6 +15,7 @@ enum Role {
   INSTRUCTOR
   ADMIN
   SUPER_ADMIN
+  PARENT
 }
 
 enum QuizStatus {
@@ -49,7 +50,45 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
 // ─── MODELS ──────────────────────────────────────────
+
+model Announcement {
+  id           String   @id @default(uuid())
+  title        String
+  body         String
+  courseId     String? // null = broadcast to every course this instructor teaches
+  instructorId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  course       Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor   User    @relation(fields: [instructorId], references: [id])
+
+  @@map("announcements")
+}
+
+model AttendanceRecord {
+  id         String           @id @default(uuid())
+  courseId   String
+  userId     String
+  date       DateTime         @db.Date // day-level only, no time component
+  status     AttendanceStatus
+  markedById String // the teacher/admin who marked it
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user       User   @relation("AttendanceOf", fields: [userId], references: [id])
+  markedBy   User   @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+
+  @@unique([courseId, userId, date])
+  @@map("attendance_records")
+}
 
 model User {
   id            String    @id @default(uuid())
@@ -72,8 +111,11 @@ model User {
   assignments   AssignmentSubmission[]
   certificates  Certificate[]
   notifications Notification[]
+  announcementsPosted Announcement[]
   payments      Payment[]
-
+  uploadedResources Resource[]
+  attendanceRecords AttendanceRecord[] @relation("AttendanceOf")
+  attendanceRecordsMarked AttendanceRecord[] @relation("AttendanceMarkedBy")
   @@map("users")
 }
 
@@ -99,7 +141,9 @@ model Course {
   assignments  Assignment[]
   certificates Certificate[]
   payments     Payment[]
-
+  resources    Resource[]
+  attendanceRecords AttendanceRecord[]
+  announcements Announcement[]
   @@map("courses")
 }
 
@@ -133,6 +177,23 @@ model Lesson {
   progress    LessonProgress[]
 
   @@map("lessons")
+}
+
+model Resource {
+  id           String   @id @default(uuid())
+  title        String
+  fileUrl      String
+  fileType     String   // MIME type, e.g. "application/pdf"
+  fileSize     Int      // bytes
+  courseId     String
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  course       Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  @@map("resources")
 }
 
 model Enrollment {
@@ -268,13 +329,25 @@ model Certificate {
   @@map("certificates")
 }
 
+enum NotificationType {
+  GENERAL
+  ENROLLMENT
+  ASSIGNMENT
+  QUIZ
+  PAYMENT
+  CERTIFICATE
+  PARENT_STUDENT
+  ANNOUNCEMENT
+}
+
 model Notification {
-  id        String   @id @default(uuid())
+  id        String           @id @default(uuid())
   userId    String
   title     String
   message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  type      NotificationType @default(GENERAL)
 
   // Relations
   user      User @relation(fields: [userId], references: [id])
@@ -299,4 +372,5 @@ model Payment {
 
   @@map("payments")
 }
+
 

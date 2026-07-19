@@ -3,8 +3,9 @@ const router = express.Router();
 const { handleUpload, uploadAvatar } = require("../../middleware/upload.middleware");
 const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
-const { protect } = require("../../middleware/auth.middleware");
-const { getMe, updateMe } = require("./users.controller");
+const { protect, requireRole } = require("../../middleware/auth.middleware");
+const ROLES = require("../../constants/roles");
+const { getMe, updateMe, getMyTeachingStats } = require("./users.controller");
 
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const UserService = require("./users.service");
@@ -14,6 +15,15 @@ router.get("/me", protect, getMe);
 
 // PATCH /api/v1/users/me — update name / avatar url
 router.patch("/me", protect, updateMe);
+
+// GET /api/v1/users/me/teaching-stats — aggregate teaching activity
+// (courses, students, quiz stats) for the instructor profile page
+router.get(
+  "/me/teaching-stats",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  getMyTeachingStats
+);
 
 
 /**

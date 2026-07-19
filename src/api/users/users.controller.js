@@ -15,4 +15,10 @@ const updateMe = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { user }, "Profile updated successfully."));
 });
 
-module.exports = { getMe, updateMe };
+// GET /api/v1/users/me/teaching-stats — INSTRUCTOR/ADMIN only
+const getMyTeachingStats = asyncHandler(async (req, res) => {
+  const stats = await UserService.getTeachingStats(req.user.id);
+  return res.status(200).json(new ApiResponse(200, { stats }, "Teaching stats fetched successfully."));
+});
+
+module.exports = { getMe, updateMe, getMyTeachingStats };

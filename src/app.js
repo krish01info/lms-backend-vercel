@@ -22,6 +22,9 @@ const questionsRoutes = require("./api/quizzes/questions.routes");
 const progressRoutes = require("./api/progress/progress.routes");
 const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes = require("./api/attendance/attendance.routes");
+const gradebookRoutes = require("./api/gradebook/gradebook.routes");
+const notificationRoutes = require("./api/notifications/notifications.routes");
+const announcementRoutes = require("./api/announcements/announcements.routes");
 const app = express();
  
 app.use(passport.initialize());
@@ -96,7 +99,9 @@ app.use(`${API}/quizzes`, attemptRoutes);  // /:quizId/attempts, /:quizId/attemp
 app.use(`${API}/progress`, progressRoutes);
 app.use(`${API}/certificates`, certificateRoutes);
 app.use(`${API}/attendance`, attendanceRoutes);
- 
+app.use(`${API}/gradebook`, gradebookRoutes);
+app.use(`${API}/notifications`, notificationRoutes);
+app.use(`${API}/announcements`, announcementRoutes);
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
