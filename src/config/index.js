@@ -46,6 +46,14 @@ const config = {
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 
+  // AI Tutor / RAG
+  ai: {
+    groqApiKey: process.env.GROQ_API_KEY,
+    jinaApiKey: process.env.JINA_API_KEY,
+    chatModel: process.env.GROQ_CHAT_MODEL || "llama-3.3-70b-versatile",
+    embeddingModel: process.env.JINA_EMBEDDING_MODEL || "jina-embeddings-v3",
+  },
+
   // Email
   email: {
     host: process.env.SMTP_HOST,

@@ -26,6 +26,8 @@ const gradebookRoutes = require("./api/gradebook/gradebook.routes");
 const notificationRoutes = require("./api/notifications/notifications.routes");
 const announcementRoutes = require("./api/announcements/announcements.routes");
 const messageRoutes = require("./api/messages/messages.routes");
+const paymentRoutes = require("./api/payments/payments.routes");
+const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
 const app = express();
  
 app.use(passport.initialize());
@@ -104,6 +106,8 @@ app.use(`${API}/gradebook`, gradebookRoutes);
 app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/messages`, messageRoutes);
+app.use(`${API}/payments`, paymentRoutes);
+app.use(`${API}/ai-tutor`, aiTutorRoutes);
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -120,5 +124,4 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
-
 module.exports = app;

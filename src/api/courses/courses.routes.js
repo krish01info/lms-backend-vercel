@@ -9,7 +9,7 @@ const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
 const { protect, requireRole, optionalAuth } = require("../../middleware/auth.middleware");
 const ROLES = require("../../constants/roles");
-const { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateCourse } = require("./courses.controller");
+const { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateCourse, updateCourseStatus, deleteCourse } = require("./courses.controller");
 const { createCourseSchema, updateCourseSchema, courseIdParamSchema } = require("./courses.validation");
 const validate = require("../../middleware/validate.middleware");
 
@@ -19,7 +19,15 @@ router.get("/enrolled", protect, getEnrolledCourses);   // student enrolled cour
 router.get("/my",       protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), getMyCourses);
 router.get("/:id",     optionalAuth, getCourseById);
 router.post("/",       protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), validate(createCourseSchema), createCourse);
-router.patch("/:id",   protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), validate(courseIdParamSchema, "params"), validate(updateCourseSchema), updateCourse);
+
+// ─── Manage course ────────────────────────────────────────────────────────────
+// PATCH /api/v1/courses/:id          — update title, description, price, etc.
+router.patch("/:id",        protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), validate(courseIdParamSchema, "params"), validate(updateCourseSchema), updateCourse);
+// PATCH /api/v1/courses/:id/status   — change to DRAFT | PUBLISHED | ARCHIVED
+router.patch("/:id/status", protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), updateCourseStatus);
+// DELETE /api/v1/courses/:id         — delete a course
+router.delete("/:id",       protect, requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN), deleteCourse);
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/v1/courses/:courseId/thumbnail

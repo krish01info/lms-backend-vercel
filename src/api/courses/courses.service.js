@@ -169,7 +169,7 @@ const createCourse = async ({ title, description, price, categoryId, category, i
   };
 };
 
-// PATCH /api/v1/courses/:courseId/thumbnail — update course thumbnail
+// PATCH /api/v1/courses/:id — update course details
 const updateCourse = async (courseId, updates, userId, role) => {
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) throw new ApiError(404, "Course not found.");
@@ -240,4 +240,53 @@ const updateThumbnail = async (courseId, thumbnailUrl, instructorId) => {
   };
 };
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateCourse, updateThumbnail };
+// PATCH /api/v1/courses/:id/status — publish / archive / draft a course
+const updateCourseStatus = async (courseId, instructorId, status, isAdmin = false) => {
+  const validStatuses = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(400, `Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+  }
+
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+  if (!isAdmin && course.instructorId !== instructorId) {
+    throw new ApiError(403, "You do not have permission to modify this course.");
+  }
+
+  const updated = await prisma.course.update({
+    where: { id: courseId },
+    data: { status },
+    select: courseSelect,
+  });
+
+  return {
+    ...updated,
+    enrollmentCount: updated._count.enrollments,
+    lessonCount: updated._count.lessons,
+    _count: undefined,
+  };
+};
+
+// DELETE /api/v1/courses/:id — delete a course (instructor or admin)
+const deleteCourse = async (courseId, instructorId, isAdmin = false) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+  if (!isAdmin && course.instructorId !== instructorId) {
+    throw new ApiError(403, "You do not have permission to delete this course.");
+  }
+
+  await prisma.course.delete({ where: { id: courseId } });
+  return { id: courseId };
+};
+
+module.exports = {
+  getCourses,
+  getCourseById,
+  getMyCourses,
+  getEnrolledCourses,
+  createCourse,
+  updateCourse,
+  updateThumbnail,
+  updateCourseStatus,
+  deleteCourse,
+};

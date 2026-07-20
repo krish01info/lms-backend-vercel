@@ -55,6 +55,12 @@ enum AttendanceStatus {
   ABSENT
 }
 
+enum AiDocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
 // ─── MODELS ──────────────────────────────────────────
 
 model Announcement {
@@ -119,6 +125,7 @@ model User {
   conversationsAs1 Conversation[] @relation("ConversationParticipant1")
   conversationsAs2 Conversation[] @relation("ConversationParticipant2")
   messages Message[]
+  aiDocuments   AiDocument[]
   @@map("users")
 }
 
@@ -427,14 +434,44 @@ model system_settings {
   updatedAt DateTime
 }
 
-model ai_document_chunks {
-  id         String   @id
+// ─── AI Tutor ─────────────────────────────────────────
+
+model AiDocument {
+  id           String           @id @default(uuid())
+  title        String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storageUrl   String?
+  status       AiDocumentStatus @default(PROCESSING)
+  errorMessage String?
+  uploadedById String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relations
+  uploadedBy   User              @relation(fields: [uploadedById], references: [id])
+  chunks       AiDocumentChunk[]
+
+  @@index([uploadedById])
+  @@index([status])
+  @@map("ai_documents")
+}
+
+model AiDocumentChunk {
+  id         String     @id @default(uuid())
   documentId String
   content    String
   page       Int?
   chunkIndex Int
   embedding  Json
   metadata   Json?
-  createdAt  DateTime @default(now())
-}
+  createdAt  DateTime   @default(now())
 
+  // Relations
+  document   AiDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@map("ai_document_chunks")
+}
