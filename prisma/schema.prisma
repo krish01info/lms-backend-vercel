@@ -420,5 +420,3 @@ model AiDocumentChunk {
   @@index([documentId])
   @@map("ai_document_chunks")
 }
-main
-
