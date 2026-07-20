@@ -1,7 +1,8 @@
 const { ChatGroq } = require("@langchain/groq");
 const { Embeddings } = require("@langchain/core/embeddings");
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
-const { PDFParse } = require("pdf-parse");
+// pdf-parse is lazy-required inside extractPdfPages to avoid crashing
+// Vercel's serverless runtime at module-load time (v2.x has DOMMatrix issue)
 const config = require("../../config");
 const { prisma } = require("../../config/database");
 const ROLES = require("../../constants/roles");
@@ -129,17 +130,16 @@ const getTitleFromFilename = (filename) => {
 };
 
 const extractPdfPages = async (buffer) => {
-  const parser = new PDFParse({ data: buffer });
-  try {
-    const result = await parser.getText();
-    return {
-      text: result.text || "",
-      pages: result.pages || [],
-      totalPages: result.total || result.pages?.length || null,
-    };
-  } finally {
-    await parser.destroy();
-  }
+  // Lazy-require pdf-parse (v1.x) so it only loads when a PDF is processed,
+  // not at server startup — avoids crashing Vercel serverless on module init.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const pdfParse = require("pdf-parse");
+  const result = await pdfParse(buffer);
+  return {
+    text: result.text || "",
+    pages: [],          // v1.x doesn't expose per-page objects; chunking uses full text
+    totalPages: result.numpages || null,
+  };
 };
 
 const splitPdfText = async (pages, fallbackText) => {
