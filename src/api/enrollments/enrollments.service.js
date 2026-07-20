@@ -149,10 +149,81 @@ const getAllEnrollments = async ({ status, courseId, userId, page = 1, limit = 2
   };
 };
  
+// ── Instructor endpoints ────────────────────────────────────────────────
+
+// POST /api/v1/enrollments/instructor-enroll
+const instructorEnroll = async (courseId, studentId, requestingUser) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+
+  const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(requestingUser.role);
+  if (!isAdmin && course.instructorId !== requestingUser.id) {
+    throw new ApiError(403, "You do not own this course.");
+  }
+
+  const student = await prisma.user.findUnique({ where: { id: studentId } });
+  if (!student) throw new ApiError(404, "Student not found.");
+
+  const enrollment = await prisma.enrollment.upsert({
+    where: { userId_courseId: { userId: studentId, courseId } },
+    update: { status: "ACTIVE", expiresAt: null },
+    create: { userId: studentId, courseId, status: "ACTIVE" },
+    select: {
+      id: true,
+      userId: true,
+      courseId: true,
+      status: true,
+      createdAt: true,
+      user: { select: { id: true, name: true, email: true } },
+      course: { select: { id: true, title: true } },
+    },
+  });
+
+  return enrollment;
+};
+
+// GET /api/v1/enrollments/course/:courseId
+const getCourseEnrollments = async (courseId, requestingUser, { status, page = 1, limit = 50 } = {}) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+
+  const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(requestingUser.role);
+  if (!isAdmin && course.instructorId !== requestingUser.id) {
+    throw new ApiError(403, "You do not own this course.");
+  }
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const where = { courseId, ...(status && { status }) };
+
+  const [enrollments, total] = await Promise.all([
+    prisma.enrollment.findMany({
+      where,
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true, avatar: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: Number(limit),
+    }),
+    prisma.enrollment.count({ where }),
+  ]);
+
+  return {
+    enrollments,
+    pagination: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) },
+  };
+};
+
 module.exports = {
   enrollInCourse,
   getMyEnrollments,
   getEnrollmentById,
   cancelEnrollment,
   getAllEnrollments,
+  instructorEnroll,
+  getCourseEnrollments,
 };

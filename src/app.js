@@ -25,6 +25,7 @@ const attendanceRoutes = require("./api/attendance/attendance.routes");
 const gradebookRoutes = require("./api/gradebook/gradebook.routes");
 const notificationRoutes = require("./api/notifications/notifications.routes");
 const announcementRoutes = require("./api/announcements/announcements.routes");
+const messageRoutes = require("./api/messages/messages.routes");
 const app = express();
  
 app.use(passport.initialize());
@@ -102,6 +103,7 @@ app.use(`${API}/attendance`, attendanceRoutes);
 app.use(`${API}/gradebook`, gradebookRoutes);
 app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/announcements`, announcementRoutes);
+app.use(`${API}/messages`, messageRoutes);
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });

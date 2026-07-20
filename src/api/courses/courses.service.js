@@ -1,5 +1,6 @@
 const { prisma } = require("../../config/database");
 const ApiError = require("../../utils/ApiError");
+const ROLES = require("../../constants/roles");
 
 const courseSelect = {
   id: true,
@@ -169,6 +170,55 @@ const createCourse = async ({ title, description, price, categoryId, category, i
 };
 
 // PATCH /api/v1/courses/:courseId/thumbnail — update course thumbnail
+const updateCourse = async (courseId, updates, userId, role) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+
+  const isPrivileged = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(role);
+  if (!isPrivileged && course.instructorId !== userId) {
+    throw new ApiError(403, "You do not have permission to modify this course.");
+  }
+
+  // If a category name was provided instead of a categoryId, resolve it
+  let resolvedCategoryId = updates.categoryId;
+  if (updates.category && updates.category !== course.categoryId) {
+    const slug = updates.category.toLowerCase().trim().replace(/ & /g, '-').replace(/ /g, '-');
+    const formattedName = updates.category
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    const dbCategory = await prisma.category.upsert({
+      where: { slug },
+      update: {},
+      create: { name: formattedName, slug },
+    });
+    resolvedCategoryId = dbCategory.id;
+  }
+
+  const data = {};
+  if (updates.title !== undefined) data.title = updates.title;
+  if (updates.description !== undefined) data.description = updates.description;
+  if (updates.price !== undefined) data.price = parseFloat(updates.price);
+  if (updates.status !== undefined) data.status = updates.status;
+  if (updates.videoUrl !== undefined) data.videoUrl = updates.videoUrl || null;
+  if (updates.thumbnail !== undefined) data.thumbnail = updates.thumbnail || null;
+  if (resolvedCategoryId !== undefined) data.categoryId = resolvedCategoryId;
+
+  const updated = await prisma.course.update({
+    where: { id: courseId },
+    data,
+    select: courseSelect,
+  });
+
+  return {
+    ...updated,
+    enrollmentCount: updated._count.enrollments,
+    lessonCount: updated._count.lessons,
+    _count: undefined,
+  };
+};
+
 const updateThumbnail = async (courseId, thumbnailUrl, instructorId) => {
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) throw new ApiError(404, "Course not found.");
@@ -190,4 +240,4 @@ const updateThumbnail = async (courseId, thumbnailUrl, instructorId) => {
   };
 };
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateThumbnail };
+module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateCourse, updateThumbnail };
