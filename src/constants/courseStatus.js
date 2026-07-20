@@ -1,0 +1,7 @@
+﻿const COURSE_STATUS = {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+};
+
+module.exports = COURSE_STATUS;
