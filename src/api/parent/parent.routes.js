@@ -177,7 +177,28 @@ router.get(
       submittedAt: s.submittedAt,
     }));
 
-    // ── 5. Child Profile ─────────────────────────────────────────────────────
+    // ── 5. Recent Quiz Attempts ──────────────────────────────────────────────
+    const recentQuizAttempts = await prisma.quizAttempt.findMany({
+      where: { userId: childId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: {
+        quiz: { select: { title: true, passMark: true } },
+      },
+    });
+
+    const recentQuizzes = recentQuizAttempts.map((a) => ({
+      quizTitle: a.quiz.title,
+      score: a.score,
+      passMark: a.quiz.passMark,
+      passed: a.passed,
+      attemptedAt: a.createdAt,
+    }));
+
+    const quizPassed  = recentQuizAttempts.filter((a) => a.passed).length;
+    const quizTotal   = recentQuizAttempts.length;
+
+    // ── 6. Child Profile ─────────────────────────────────────────────────────
     const child = await prisma.user.findUnique({
       where: { id: childId },
       select: { id: true, name: true, email: true, avatar: true },
@@ -195,9 +216,12 @@ router.get(
           attendancePercentage,
           totalClasses,
           presentCount,
+          quizPassed,
+          quizTotal,
         },
         courses,
         recentAssignments,
+        recentQuizzes,
       }, "Child overview fetched successfully.")
     );
   })
