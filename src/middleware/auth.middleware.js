@@ -2,8 +2,8 @@ const ApiError = require("../utils/ApiError");
 const { verifyAccessToken, extractBearerToken } = require("../utils/jwtUtils");
 const HTTP_STATUS = require("../constants/httpStatus");
 const ROLES = require("../constants/roles");
+const { prisma } = require("../config/database");
 // const redis = require("../config/redis");       // uncomment when Redis is running
-// const { prisma } = require("../config/database"); // uncomment when DB is connected
 
 // ─────────────────────────────────────────────────────────────────────────────
 // protect — verifies JWT and attaches req.user
@@ -196,9 +196,6 @@ const checkEnrollment = async (req, res, next) => {
     if ([ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(req.user.role)) {
       return next()
     }
-
-    const { PrismaClient } = require('@prisma/client')
-    const prisma = new PrismaClient()
 
     const courseId = req.params.courseId
 

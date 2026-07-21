@@ -4,8 +4,7 @@ const asyncHandler = require("../../utils/asyncHandler")
 const ApiResponse = require("../../utils/ApiResponse")
 const ApiError = require("../../utils/ApiError")
 const { protect } = require("../../middleware/auth.middleware")
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const { prisma } = require('../../config/database')
 
 // GET /api/v1/progress/my
 // Returns per-course progress summary for the logged-in student:
