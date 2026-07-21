@@ -27,6 +27,7 @@ const notificationRoutes = require("./api/notifications/notifications.routes");
 const announcementRoutes = require("./api/announcements/announcements.routes");
 const paymentRoutes = require("./api/payments/payments.routes");
 const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
+const parentRoutes = require("./api/parent/parent.routes");
 const app = express();
  
 app.use(passport.initialize());
@@ -106,6 +107,7 @@ app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/payments`, paymentRoutes);
 app.use(`${API}/ai-tutor`, aiTutorRoutes);
+app.use(`${API}/parent`,   parentRoutes);
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });

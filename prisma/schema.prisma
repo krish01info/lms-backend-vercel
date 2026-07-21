@@ -122,7 +122,23 @@ model User {
   attendanceRecords AttendanceRecord[] @relation("AttendanceOf")
   attendanceRecordsMarked AttendanceRecord[] @relation("AttendanceMarkedBy")
   aiDocuments   AiDocument[]
+  parentLinks   ParentChild[]   @relation("ParentOf")   // PARENT role: children linked
+  childLinks    ParentChild[]   @relation("ChildOf")    // STUDENT role: parents linked
   @@map("users")
+}
+
+// ─── Parent-Child Link ────────────────────────────────────────────────────────
+model ParentChild {
+  id        String   @id @default(uuid())
+  parentId  String
+  childId   String
+  createdAt DateTime @default(now())
+
+  parent    User @relation("ParentOf", fields: [parentId], references: [id], onDelete: Cascade)
+  child     User @relation("ChildOf",  fields: [childId],  references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@map("parent_children")
 }
 
 model Course {
