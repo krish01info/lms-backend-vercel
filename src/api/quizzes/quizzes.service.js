@@ -61,6 +61,26 @@ const createQuiz = async ({ title, courseId, timeLimit, passMark, userId, role }
   return formatQuiz(quiz);
 };
 
+// GET /api/v1/quizzes/my — quizzes from ALL courses the logged-in student is enrolled in.
+// This is the primary endpoint the student QuizzesPage calls.
+const getMyQuizzes = async (userId) => {
+  const enrolledCourseIds = await prisma.enrollment.findMany({
+    where: { userId, status: "ACTIVE" },
+    select: { courseId: true },
+  });
+
+  const courseIds = enrolledCourseIds.map((e) => e.courseId);
+  if (courseIds.length === 0) return { quizzes: [] };
+
+  const quizzes = await prisma.quiz.findMany({
+    where: { courseId: { in: courseIds }, status: "ACTIVE" },
+    select: quizSelect,
+    orderBy: { createdAt: "desc" },
+  });
+
+  return { quizzes: quizzes.map(formatQuiz) };
+};
+
 // GET /api/v1/quizzes?courseId=&page=&limit=
 // STUDENT (or unauthenticated) callers only ever see ACTIVE quizzes.
 // INSTRUCTOR/ADMIN/SUPER_ADMIN see all statuses so archived quizzes they
@@ -143,4 +163,4 @@ const deleteQuiz = async (id, userId, role) => {
   return { id };
 };
 
-module.exports = { createQuiz, getQuizzes, getQuizById, updateQuiz, deleteQuiz, assertCourseOwnership };
+module.exports = { createQuiz, getQuizzes, getMyQuizzes, getQuizById, updateQuiz, deleteQuiz, assertCourseOwnership };

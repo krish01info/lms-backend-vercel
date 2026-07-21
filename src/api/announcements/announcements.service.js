@@ -69,10 +69,12 @@ const createAnnouncement = async ({ title, body, courseId, instructorId, role })
   });
   const studentIds = enrollments.map((e) => e.userId);
 
-  await NotificationService.createNotificationsForUsers(studentIds, {
+  await NotificationService.createMany(studentIds, {
     title: `New announcement: ${title}`,
     message: body.length > 200 ? `${body.slice(0, 200)}…` : body,
     type: "ANNOUNCEMENT",
+    link: courseId ? `/courses/${courseId}` : `/announcements`,
+    meta: { announcementId: announcement.id, courseId: courseId ?? null },
   });
 
   return announcement;

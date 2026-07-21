@@ -4,7 +4,8 @@ const asyncHandler = require("../../utils/asyncHandler")
 const ApiResponse = require("../../utils/ApiResponse")
 const ApiError = require("../../utils/ApiError")
 const { protect } = require("../../middleware/auth.middleware")
-const { prisma } = require('../../config/database')
+const { PrismaClient } = require('@prisma/client')
+const prisma = new PrismaClient()
 
 // GET /api/v1/progress/my
 // Returns per-course progress summary for the logged-in student:
@@ -53,6 +54,46 @@ router.get('/my',
 
     return res.status(200).json(
       new ApiResponse(200, { progress }, 'Progress fetched successfully.')
+    )
+  })
+)
+
+// GET /api/v1/progress/my/weekly-hours
+// Real study time for the last 7 days, derived from LessonProgress.watchedTime
+// (grouped by the day it was last updated). Powers the "Weekly Study Hours" chart.
+router.get('/my/weekly-hours',
+  protect,
+  asyncHandler(async (req, res) => {
+    const userId = req.user.id
+    const since = new Date()
+    since.setDate(since.getDate() - 6)
+    since.setHours(0, 0, 0, 0)
+
+    const records = await prisma.lessonProgress.findMany({
+      where: { userId, updatedAt: { gte: since } },
+      select: { watchedTime: true, updatedAt: true },
+    })
+
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const buckets = new Map() // 'YYYY-MM-DD' -> seconds
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(since)
+      d.setDate(since.getDate() + i)
+      buckets.set(d.toISOString().slice(0, 10), 0)
+    }
+
+    for (const r of records) {
+      const key = r.updatedAt.toISOString().slice(0, 10)
+      if (buckets.has(key)) buckets.set(key, buckets.get(key) + r.watchedTime)
+    }
+
+    const weeklyHours = [...buckets.entries()].map(([key, seconds]) => ({
+      name: dayLabels[new Date(key).getDay()],
+      hours: Number((seconds / 3600).toFixed(1)),
+    }))
+
+    return res.status(200).json(
+      new ApiResponse(200, { weeklyHours }, 'Weekly study hours fetched successfully.')
     )
   })
 )

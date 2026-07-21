@@ -1,4 +1,4 @@
-﻿const ApiError = require("../utils/ApiError");
+const ApiError = require("../utils/ApiError");
 const HTTP_STATUS = require("../constants/httpStatus");
 
 // Generic Joi-based validation middleware factory.
@@ -19,4 +19,4 @@ const validate = (schema, source = "body") => (req, res, next) => {
   next();
 };
 
-module.exports = validate;// code here
+module.exports = validate;

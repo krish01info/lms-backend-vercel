@@ -1,4 +1,4 @@
-﻿const asyncHandler = require("../../utils/asyncHandler");
+const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
 const EnrollmentService = require("./enrollments.service");
  
@@ -35,10 +35,30 @@ const getAllEnrollments = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, "Enrollments fetched."));
 });
  
+// POST /api/v1/enrollments/instructor-enroll
+const instructorEnroll = asyncHandler(async (req, res) => {
+  const { courseId, studentId } = req.body;
+  if (!courseId || !studentId) {
+    return res.status(400).json(new ApiResponse(400, null, "courseId and studentId are required."));
+  }
+  const enrollment = await EnrollmentService.instructorEnroll(courseId, studentId, req.user);
+  return res.status(201).json(new ApiResponse(201, { enrollment }, "Student enrolled successfully."));
+});
+
+// GET /api/v1/enrollments/course/:courseId
+const getCourseEnrollments = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+  const { status, page, limit } = req.query;
+  const result = await EnrollmentService.getCourseEnrollments(courseId, req.user, { status, page, limit });
+  return res.status(200).json(new ApiResponse(200, result, "Course enrollments fetched."));
+});
+
 module.exports = {
   enrollInCourse,
   getMyEnrollments,
   getEnrollmentById,
   cancelEnrollment,
   getAllEnrollments,
+  instructorEnroll,
+  getCourseEnrollments,
 };

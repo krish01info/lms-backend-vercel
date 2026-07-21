@@ -1,4 +1,4 @@
-﻿const asyncHandler = require("../../utils/asyncHandler");
+const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
 const QuizService = require("./quizzes.service");
 
@@ -16,6 +16,12 @@ const createQuiz = asyncHandler(async (req, res) => {
   });
 
   return res.status(201).json(new ApiResponse(201, { quiz }, "Quiz created successfully."));
+});
+
+// GET /api/v1/quizzes/my — quizzes for the student's enrolled courses
+const getMyQuizzes = asyncHandler(async (req, res) => {
+  const result = await QuizService.getMyQuizzes(req.user.id);
+  return res.status(200).json(new ApiResponse(200, result, "My quizzes fetched successfully."));
 });
 
 // GET /api/v1/quizzes
@@ -60,4 +66,4 @@ const deleteQuiz = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, null, "Quiz deleted successfully."));
 });
 
-module.exports = { createQuiz, getQuizzes, getQuizById, updateQuiz, deleteQuiz };// code here
+module.exports = { createQuiz, getQuizzes, getMyQuizzes, getQuizById, updateQuiz, deleteQuiz };

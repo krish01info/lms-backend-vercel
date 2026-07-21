@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── ENUMS ───────────────────────────────────────────
@@ -121,24 +122,16 @@ model User {
   uploadedResources Resource[]
   attendanceRecords AttendanceRecord[] @relation("AttendanceOf")
   attendanceRecordsMarked AttendanceRecord[] @relation("AttendanceMarkedBy")
+  conversationsAs1 Conversation[] @relation("ConversationParticipant1")
+  conversationsAs2 Conversation[] @relation("ConversationParticipant2")
+  messages Message[]
   aiDocuments   AiDocument[]
-  parentLinks   ParentChild[]   @relation("ParentOf")   // PARENT role: children linked
-  childLinks    ParentChild[]   @relation("ChildOf")    // STUDENT role: parents linked
+
+  // Parent-Student relations
+  parentLinks   ParentStudentLink[] @relation("ParentLinks")
+  studentLinks  ParentStudentLink[] @relation("StudentLinks")
+
   @@map("users")
-}
-
-// ─── Parent-Child Link ────────────────────────────────────────────────────────
-model ParentChild {
-  id        String   @id @default(uuid())
-  parentId  String
-  childId   String
-  createdAt DateTime @default(now())
-
-  parent    User @relation("ParentOf", fields: [parentId], references: [id], onDelete: Cascade)
-  child     User @relation("ChildOf",  fields: [childId],  references: [id], onDelete: Cascade)
-
-  @@unique([parentId, childId])
-  @@map("parent_children")
 }
 
 model Course {
@@ -370,6 +363,8 @@ model Notification {
   isRead    Boolean          @default(false)
   createdAt DateTime         @default(now())
   type      NotificationType @default(GENERAL)
+  link      String?          // optional deep-link target for the frontend (e.g. "/courses/123")
+  meta      Json?            // optional structured payload (courseId, assignmentId, etc.)
 
   // Relations
   user      User @relation(fields: [userId], references: [id])
@@ -395,6 +390,74 @@ model Payment {
   @@map("payments")
 }
 
+model Conversation {
+  id             String    @id @default(uuid())
+  participant1Id String
+  participant2Id String
+  lastMessageAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  participant1   User      @relation("ConversationParticipant1", fields: [participant1Id], references: [id])
+  participant2   User      @relation("ConversationParticipant2", fields: [participant2Id], references: [id])
+  messages       Message[]
+
+  @@unique([participant1Id, participant2Id])
+  @@map("conversations")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+// ─── Existing DB tables not tracked in schema yet ─────────────────────────
+
+model admin_audit_logs {
+  id         String   @id
+  adminId    String
+  adminName  String
+  adminEmail String
+  action     String
+  targetType String?
+  targetId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+}
+
+model system_settings {
+  id        String   @id
+  key       String   @unique
+  value     String
+  updatedAt DateTime
+}
+
+// Links a parent account to a student account (many-to-many capable —
+// one parent can watch multiple children, and in theory a student could
+// have more than one linked parent/guardian).
+model ParentStudentLink {
+  id        String   @id @default(uuid())
+  parentId  String
+  studentId String
+  createdAt DateTime @default(now())
+
+  parent    User     @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  student   User     @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@map("parent_student_links")
+}
+
+// ─── AI Tutor ─────────────────────────────────────────
 
 model AiDocument {
   id           String           @id @default(uuid())
@@ -435,3 +498,33 @@ model AiDocumentChunk {
   @@index([documentId])
   @@map("ai_document_chunks")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin panel — added standalone, no relation fields on existing models,
+// so this is a pure addition with zero risk of conflicting with anyone
+// else's changes to User/Course/etc.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  adminName  String
+  adminEmail String
+  action     String
+  targetType String?
+  targetId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+
+  @@map("admin_audit_logs")
+}
+

@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const router = express.Router();
 
 const { protect, requireRole } = require("../../middleware/auth.middleware");
@@ -12,12 +12,14 @@ const {
 const {
   createQuiz,
   getQuizzes,
+  getMyQuizzes,
   getQuizById,
   updateQuiz,
   deleteQuiz,
 } = require("./quizzes.controller");
 
 router.get("/", protect, getQuizzes);
+router.get("/my", protect, getMyQuizzes); // MUST be before /:id to avoid "my" being treated as an id
 router.get("/:id", protect, validate(quizIdParamSchema, "params"), getQuizById);
 
 router.post(

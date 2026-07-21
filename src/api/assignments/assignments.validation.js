@@ -1,4 +1,4 @@
-﻿const Joi = require("joi");
+const Joi = require("joi");
 
 // POST /api/v1/assignments
 const createAssignmentSchema = Joi.object({

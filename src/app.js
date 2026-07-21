@@ -7,6 +7,11 @@ const cookieParser = require("cookie-parser");
 const passport = require("./config/passport");
 const path = require("path");
 const config = require("./config");
+const errorHandler = require("./middleware/errorHandler");
+const requestLogger = require("./middleware/requestLogger");
+const { apiLimiter } = require("./middleware/rateLimiter");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
  
 // ─── Route Imports ────────────────────────────────────────────────────────────
 const authRoutes        = require("./api/auth/auth.routes");
@@ -25,12 +30,22 @@ const attendanceRoutes = require("./api/attendance/attendance.routes");
 const gradebookRoutes = require("./api/gradebook/gradebook.routes");
 const notificationRoutes = require("./api/notifications/notifications.routes");
 const announcementRoutes = require("./api/announcements/announcements.routes");
+const messageRoutes = require("./api/messages/messages.routes");
 const paymentRoutes = require("./api/payments/payments.routes");
 const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
+const adminRoutes = require("./api/admin/admin.routes");
+const resultsRoutes = require("./api/results/results.routes");
 const parentRoutes = require("./api/parent/parent.routes");
+const { registerNotificationListeners } = require("./api/events/notification.listners");
 const app = express();
  
 app.use(passport.initialize());
+
+// ─── Notification System ───────────────────────────────────────────────────────
+// Binds every NOTIFICATION_EVENTS.* handler (see notification.listners.js) to the
+// shared event bus. Must run once at boot, before any request can trigger an
+// emit — otherwise events fire into a bus nobody is listening on.
+registerNotificationListeners();
  
  
 // ─── Security & Compression ───────────────────────────────────────────────────
@@ -67,7 +82,11 @@ app.use(compression());
 // ─── Logging ──────────────────────────────────────────────────────────────────
 if (config.env !== "test") {
   app.use(morgan("dev"));
+  app.use(requestLogger);
 }
+
+// ─── Rate limiting (general API guard; auth routes add their own stricter one) ─
+app.use(`/api/v1`, apiLimiter);
  
 // ─── Body Parsers ─────────────────────────────────────────────────────────────
 // NOTE: Do NOT add express.json() before multer routes — multer handles multipart.
@@ -86,6 +105,11 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", env: config.env, timestamp: new Date().toISOString() });
 });
  
+// ─── API Docs (dev/staging only) ───────────────────────────────────────────────
+if (config.env !== "production") {
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
 // ─── API Routes ───────────────────────────────────────────────────────────────
 const API = "/api/v1";
  
@@ -105,23 +129,17 @@ app.use(`${API}/attendance`, attendanceRoutes);
 app.use(`${API}/gradebook`, gradebookRoutes);
 app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/announcements`, announcementRoutes);
+app.use(`${API}/messages`, messageRoutes);
 app.use(`${API}/payments`, paymentRoutes);
 app.use(`${API}/ai-tutor`, aiTutorRoutes);
-app.use(`${API}/parent`,   parentRoutes);
+app.use(`${API}/admin`, adminRoutes);
+app.use(`${API}/results`, resultsRoutes);
+app.use(`${API}/parent`, parentRoutes);
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
 });
  
 // ─── Global Error Handler ─────────────────────────────────────────────────────
-app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    success: false,
-    statusCode,
-    message: err.message || "Internal Server Error",
-    errors: err.errors || [],
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
-  });
-});
+app.use(errorHandler);
 module.exports = app;

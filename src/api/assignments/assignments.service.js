@@ -1,4 +1,4 @@
-﻿const { prisma } = require("../../config/database");
+const { prisma } = require("../../config/database");
 const ApiError = require("../../utils/ApiError");
 const ROLES = require("../../constants/roles");
 
@@ -131,8 +131,21 @@ const getAssignments = async ({ courseId, page = 1, limit = 20, userId, role }) 
     prisma.assignment.count({ where }),
   ]);
 
+  let formatted = assignments.map(formatAssignment);
+
+  // Students need their own submission (status/grade) per assignment — attach
+  // it here so the frontend doesn't need a second round-trip per card.
+  if (!isPrivileged && formatted.length > 0) {
+    const submissions = await prisma.assignmentSubmission.findMany({
+      where: { userId, assignmentId: { in: formatted.map((a) => a.id) } },
+      select: submissionSelect,
+    });
+    const byAssignment = Object.fromEntries(submissions.map((s) => [s.assignmentId, s]));
+    formatted = formatted.map((a) => ({ ...a, mySubmission: byAssignment[a.id] || null }));
+  }
+
   return {
-    assignments: assignments.map(formatAssignment),
+    assignments: formatted,
     pagination: {
       total,
       page: Number(page),
