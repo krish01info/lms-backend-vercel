@@ -20,6 +20,10 @@ const progressRoutes    = require("./api/progress/progress.routes");
 const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes = require("./api/attendance/attendance.routes");
 const paymentRoutes = require("./api/payments/payments.routes");
+const announcementRoutes = require("./api/announcements/announcements.routes");
+const activityRoutes = require("./api/activity/activity.routes");
+
+
  
 const app = express();
  
@@ -93,7 +97,11 @@ app.use(`${API}/progress`,    progressRoutes);
 app.use(`${API}/certificates`, certificateRoutes);
 app.use(`${API}/attendance`, attendanceRoutes);
 app.use(`${API}/payments`, paymentRoutes);
- 
+app.use(`${API}/announcements`, announcementRoutes);
+app.use(`${API}/activity`, activityRoutes);
+
+
+
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
