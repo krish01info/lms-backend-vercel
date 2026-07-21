@@ -6,8 +6,7 @@ const ApiError = require("../../utils/ApiError")
 const { protect, requireRole, checkEnrollment } = require("../../middleware/auth.middleware")
 const { handleUpload, uploadLessonVideo } = require("../../middleware/upload.middleware")
 const ROLES = require("../../constants/roles")
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const { prisma } = require('../../config/database')
 
 // GET /api/v1/courses/:courseId/lessons
 router.get('/',

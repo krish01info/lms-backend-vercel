@@ -1,31 +1,55 @@
-const express = require("express")
-const router = express.Router()
-const asyncHandler = require("../../utils/asyncHandler")
-const ApiResponse = require("../../utils/ApiResponse")
-const { protect } = require("../../middleware/auth.middleware")
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const express = require("express");
+const router = express.Router();
+const { protect, requireRole } = require("../../middleware/auth.middleware");
+const validate = require("../../middleware/validate.middleware");
+const ROLES = require("../../constants/roles");
+const {
+  createAnnouncementSchema,
+  updateAnnouncementSchema,
+  announcementIdParamSchema,
+} = require("./announcements.validation");
+const {
+  createAnnouncement,
+  getAnnouncements,
+  getAnnouncementById,
+  updateAnnouncement,
+  deleteAnnouncement,
+} = require("./announcements.controller");
 
-// GET /api/v1/announcements/my
-router.get('/my',
+// POST /api/v1/announcements — instructor/admin. courseId omitted/null = all
+// of this instructor's courses. Fans out a Notification to every affected
+// student.
+router.post(
+  "/",
   protect,
-  asyncHandler(async (req, res) => {
-    const userId = req.user.id
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  validate(createAnnouncementSchema),
+  createAnnouncement
+);
 
-    const enrollments = await prisma.enrollment.findMany({
-      where: { userId, status: 'ACTIVE' },
-      select: { courseId: true },
-    })
-    const courseIds = enrollments.map(e => e.courseId)
+// GET /api/v1/announcements?courseId=&page=&limit=
+router.get("/", protect, getAnnouncements);
 
-    const announcements = await prisma.announcement.findMany({
-      where: { OR: [{ courseId: null }, { courseId: { in: courseIds } }] },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    })
+// GET /api/v1/announcements/:id
+router.get("/:id", protect, validate(announcementIdParamSchema, "params"), getAnnouncementById);
 
-    res.status(200).json(new ApiResponse(200, { announcements }, "Announcements fetched"))
-  })
-)
+// PATCH /api/v1/announcements/:id — instructor (owner)/admin
+router.patch(
+  "/:id",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  validate(announcementIdParamSchema, "params"),
+  validate(updateAnnouncementSchema),
+  updateAnnouncement
+);
 
-module.exports = router
+// DELETE /api/v1/announcements/:id — instructor (owner)/admin
+router.delete(
+  "/:id",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  validate(announcementIdParamSchema, "params"),
+  deleteAnnouncement
+);
+
+module.exports = router;

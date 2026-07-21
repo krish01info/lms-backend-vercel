@@ -190,4 +190,101 @@ const updateThumbnail = async (courseId, thumbnailUrl, instructorId) => {
   };
 };
 
-module.exports = { getCourses, getCourseById, getMyCourses, getEnrolledCourses, createCourse, updateThumbnail };
+// PATCH /api/v1/courses/:id — update course details
+const updateCourse = async (courseId, instructorId, updates, isAdmin = false) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+  if (!isAdmin && course.instructorId !== instructorId) {
+    throw new ApiError(403, "You do not have permission to modify this course.");
+  }
+
+  const { title, description, price, categoryId, category, videoUrl, status } = updates;
+
+  let resolvedCategoryId = categoryId !== undefined ? categoryId : course.categoryId;
+
+  // If a category name string was provided (not an ID), upsert it
+  if (!categoryId && category) {
+    const slug = category.toLowerCase().trim().replace(/ & /g, "-").replace(/ /g, "-");
+    const formattedName = category
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    const dbCategory = await prisma.category.upsert({
+      where: { slug },
+      update: {},
+      create: { name: formattedName, slug },
+    });
+    resolvedCategoryId = dbCategory.id;
+  }
+
+  const updated = await prisma.course.update({
+    where: { id: courseId },
+    data: {
+      ...(title !== undefined && { title }),
+      ...(description !== undefined && { description }),
+      ...(price !== undefined && { price: parseFloat(price) }),
+      ...(resolvedCategoryId !== undefined && { categoryId: resolvedCategoryId }),
+      ...(videoUrl !== undefined && { videoUrl }),
+      ...(status !== undefined && { status }),
+    },
+    select: courseSelect,
+  });
+
+  return {
+    ...updated,
+    enrollmentCount: updated._count.enrollments,
+    lessonCount: updated._count.lessons,
+    _count: undefined,
+  };
+};
+
+// PATCH /api/v1/courses/:id/status — publish / archive / draft a course
+const updateCourseStatus = async (courseId, instructorId, status, isAdmin = false) => {
+  const validStatuses = ["DRAFT", "PUBLISHED", "ARCHIVED"];
+  if (!validStatuses.includes(status)) {
+    throw new ApiError(400, `Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+  }
+
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+  if (!isAdmin && course.instructorId !== instructorId) {
+    throw new ApiError(403, "You do not have permission to modify this course.");
+  }
+
+  const updated = await prisma.course.update({
+    where: { id: courseId },
+    data: { status },
+    select: courseSelect,
+  });
+
+  return {
+    ...updated,
+    enrollmentCount: updated._count.enrollments,
+    lessonCount: updated._count.lessons,
+    _count: undefined,
+  };
+};
+
+// DELETE /api/v1/courses/:id — delete a course (instructor or admin)
+const deleteCourse = async (courseId, instructorId, isAdmin = false) => {
+  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  if (!course) throw new ApiError(404, "Course not found.");
+  if (!isAdmin && course.instructorId !== instructorId) {
+    throw new ApiError(403, "You do not have permission to delete this course.");
+  }
+
+  await prisma.course.delete({ where: { id: courseId } });
+  return { id: courseId };
+};
+
+module.exports = {
+  getCourses,
+  getCourseById,
+  getMyCourses,
+  getEnrolledCourses,
+  createCourse,
+  updateThumbnail,
+  updateCourse,
+  updateCourseStatus,
+  deleteCourse,
+};

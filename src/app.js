@@ -16,15 +16,26 @@ const enrollmentRoutes  = require("./api/enrollments/enrollments.routes");
 const lessonRoutes      = require("./api/lessons/lessons.routes");
 const assignmentRoutes  = require("./api/assignments/assignments.routes");
 const uploadRoutes      = require("./api/uploads/uploads.routes");
-const progressRoutes    = require("./api/progress/progress.routes");
+const quizRoutes = require("./api/quizzes/quizzes.routes");
+const attemptRoutes = require("./api/quizzes/attempts.routes");
+const questionsRoutes = require("./api/quizzes/questions.routes");
+const progressRoutes = require("./api/progress/progress.routes");
 const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes = require("./api/attendance/attendance.routes");
+const gradebookRoutes = require("./api/gradebook/gradebook.routes");
+const notificationRoutes = require("./api/notifications/notifications.routes");
+const announcementRoutes = require("./api/announcements/announcements.routes");
 const paymentRoutes = require("./api/payments/payments.routes");
+<<<<<<< HEAD
 const announcementRoutes = require("./api/announcements/announcements.routes");
 const activityRoutes = require("./api/activity/activity.routes");
 
 
  
+=======
+const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
+const parentRoutes = require("./api/parent/parent.routes");
+>>>>>>> 487da2f3a38aa666dd0b67093e0c6bd1d6661281
 const app = express();
  
 app.use(passport.initialize());
@@ -93,15 +104,26 @@ app.use(`${API}/enrollments`, enrollmentRoutes);
 app.use(`${API}/courses/:courseId/lessons`, lessonRoutes);
 app.use(`${API}/assignments`, assignmentRoutes);
 app.use(`${API}/uploads`,     uploadRoutes);
-app.use(`${API}/progress`,    progressRoutes);
+app.use(`${API}`, questionsRoutes);        // /quizzes/:quizId/questions, /questions/:id
+app.use(`${API}/quizzes`, quizRoutes);
+app.use(`${API}/quizzes`, attemptRoutes);  // /:quizId/attempts, /:quizId/attempts/me
+app.use(`${API}/progress`, progressRoutes);
 app.use(`${API}/certificates`, certificateRoutes);
 app.use(`${API}/attendance`, attendanceRoutes);
+app.use(`${API}/gradebook`, gradebookRoutes);
+app.use(`${API}/notifications`, notificationRoutes);
+app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/payments`, paymentRoutes);
+<<<<<<< HEAD
 app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/activity`, activityRoutes);
 
 
 
+=======
+app.use(`${API}/ai-tutor`, aiTutorRoutes);
+app.use(`${API}/parent`,   parentRoutes);
+>>>>>>> 487da2f3a38aa666dd0b67093e0c6bd1d6661281
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
@@ -118,5 +140,4 @@ app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
   });
 });
- 
 module.exports = app;

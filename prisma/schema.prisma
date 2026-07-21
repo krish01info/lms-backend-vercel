@@ -14,6 +14,12 @@ enum Role {
   INSTRUCTOR
   ADMIN
   SUPER_ADMIN
+  PARENT
+}
+
+enum QuizStatus {
+  ACTIVE
+  ARCHIVED
 }
 
 enum CourseStatus {
@@ -43,7 +49,51 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+}
+
+enum AiDocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
 // ─── MODELS ──────────────────────────────────────────
+
+model Announcement {
+  id           String   @id @default(uuid())
+  title        String
+  body         String
+  courseId     String? // null = broadcast to every course this instructor teaches
+  instructorId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  course       Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructor   User    @relation(fields: [instructorId], references: [id])
+
+  @@map("announcements")
+}
+
+model AttendanceRecord {
+  id         String           @id @default(uuid())
+  courseId   String
+  userId     String
+  date       DateTime         @db.Date // day-level only, no time component
+  status     AttendanceStatus
+  markedById String // the teacher/admin who marked it
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  course     Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user       User   @relation("AttendanceOf", fields: [userId], references: [id])
+  markedBy   User   @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+
+  @@unique([courseId, userId, date])
+  @@map("attendance_records")
+}
 
 model User {
   id            String    @id @default(uuid())
@@ -66,9 +116,29 @@ model User {
   assignments   AssignmentSubmission[]
   certificates  Certificate[]
   notifications Notification[]
+  announcementsPosted Announcement[]
   payments      Payment[]
-
+  uploadedResources Resource[]
+  attendanceRecords AttendanceRecord[] @relation("AttendanceOf")
+  attendanceRecordsMarked AttendanceRecord[] @relation("AttendanceMarkedBy")
+  aiDocuments   AiDocument[]
+  parentLinks   ParentChild[]   @relation("ParentOf")   // PARENT role: children linked
+  childLinks    ParentChild[]   @relation("ChildOf")    // STUDENT role: parents linked
   @@map("users")
+}
+
+// ─── Parent-Child Link ────────────────────────────────────────────────────────
+model ParentChild {
+  id        String   @id @default(uuid())
+  parentId  String
+  childId   String
+  createdAt DateTime @default(now())
+
+  parent    User @relation("ParentOf", fields: [parentId], references: [id], onDelete: Cascade)
+  child     User @relation("ChildOf",  fields: [childId],  references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@map("parent_children")
 }
 
 model Course {
@@ -93,7 +163,9 @@ model Course {
   assignments  Assignment[]
   certificates Certificate[]
   payments     Payment[]
-
+  resources    Resource[]
+  attendanceRecords AttendanceRecord[]
+  announcements Announcement[]
   @@map("courses")
 }
 
@@ -127,6 +199,23 @@ model Lesson {
   progress    LessonProgress[]
 
   @@map("lessons")
+}
+
+model Resource {
+  id           String   @id @default(uuid())
+  title        String
+  fileUrl      String
+  fileType     String   // MIME type, e.g. "application/pdf"
+  fileSize     Int      // bytes
+  courseId     String
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  course       Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  @@map("resources")
 }
 
 model Enrollment {
@@ -169,6 +258,7 @@ model Quiz {
   courseId  String
   timeLimit Int?     // in minutes
   passMark  Int      @default(70) // percentage
+  status    QuizStatus @default(ACTIVE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -207,6 +297,7 @@ model QuizAttempt {
   user      User @relation(fields: [userId], references: [id])
   quiz      Quiz @relation(fields: [quizId], references: [id])
 
+  @@unique([userId, quizId])
   @@map("quiz_attempts")
 }
 
@@ -260,13 +351,25 @@ model Certificate {
   @@map("certificates")
 }
 
+enum NotificationType {
+  GENERAL
+  ENROLLMENT
+  ASSIGNMENT
+  QUIZ
+  PAYMENT
+  CERTIFICATE
+  PARENT_STUDENT
+  ANNOUNCEMENT
+}
+
 model Notification {
-  id        String   @id @default(uuid())
+  id        String           @id @default(uuid())
   userId    String
   title     String
   message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  type      NotificationType @default(GENERAL)
 
   // Relations
   user      User @relation(fields: [userId], references: [id])
@@ -292,3 +395,43 @@ model Payment {
   @@map("payments")
 }
 
+
+model AiDocument {
+  id           String           @id @default(uuid())
+  title        String
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storageUrl   String?
+  status       AiDocumentStatus @default(PROCESSING)
+  errorMessage String?
+  uploadedById String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  // Relations
+  uploadedBy   User              @relation(fields: [uploadedById], references: [id])
+  chunks       AiDocumentChunk[]
+
+  @@index([uploadedById])
+  @@index([status])
+  @@map("ai_documents")
+}
+
+model AiDocumentChunk {
+  id         String     @id @default(uuid())
+  documentId String
+  content    String
+  page       Int?
+  chunkIndex Int
+  embedding  Json
+  metadata   Json?
+  createdAt  DateTime   @default(now())
+
+  // Relations
+  document   AiDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@map("ai_document_chunks")
+}
