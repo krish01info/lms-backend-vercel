@@ -420,27 +420,6 @@ model Message {
   @@map("messages")
 }
 
-// ─── Existing DB tables not tracked in schema yet ─────────────────────────
-
-model admin_audit_logs {
-  id         String   @id
-  adminId    String
-  adminName  String
-  adminEmail String
-  action     String
-  targetType String?
-  targetId   String?
-  details    String?
-  createdAt  DateTime @default(now())
-}
-
-model system_settings {
-  id        String   @id
-  key       String   @unique
-  value     String
-  updatedAt DateTime
-}
-
 // Links a parent account to a student account (many-to-many capable —
 // one parent can watch multiple children, and in theory a student could
 // have more than one linked parent/guardian).
@@ -527,4 +506,3 @@ model AdminAuditLog {
 
   @@map("admin_audit_logs")
 }
-
