@@ -47,19 +47,16 @@ function registerChatHandlers(io, socket) {
 
   // ─── Events ────────────────────────────────────────────────────────────
 
-  // Join a conversation room
   socket.on("conversation:join", ({ conversationId }) => {
     if (!conversationId) return;
     socket.join(`conversation:${conversationId}`);
   });
 
-  // Leave a conversation room
   socket.on("conversation:leave", ({ conversationId }) => {
     if (!conversationId) return;
     socket.leave(`conversation:${conversationId}`);
   });
 
-  // Send a message (real-time) — delegates to the service for persistence
   socket.on("message:send", async ({ conversationId, content }, ack) => {
     if (!conversationId || !content?.trim()) {
       if (ack) ack({ error: "conversationId and content are required." });
@@ -67,10 +64,8 @@ function registerChatHandlers(io, socket) {
     }
 
     try {
-      // Use the same service method as the REST API to avoid duplication
       const message = await MessageService.sendMessage(conversationId, userId, content.trim());
 
-      // Determine the other participant for notification
       const conv = await prisma.conversation.findUnique({
         where: { id: conversationId },
         select: { participant1Id: true, participant2Id: true },
@@ -78,10 +73,8 @@ function registerChatHandlers(io, socket) {
       const otherUserId =
         conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id;
 
-      // Emit to everyone in the conversation room
       io.to(`conversation:${conversationId}`).emit("message:new", message);
 
-      // Notify the other user's personal room for badge updates
       io.to(`user:${otherUserId}`).emit("conversation:unread", {
         conversationId,
         senderId: userId,
@@ -94,7 +87,6 @@ function registerChatHandlers(io, socket) {
     }
   });
 
-  // Mark messages as read
   socket.on("conversation:read", async ({ conversationId }, ack) => {
     if (!conversationId) return;
 
@@ -114,7 +106,6 @@ function registerChatHandlers(io, socket) {
     }
   });
 
-  // Typing indicator
   socket.on("typing:start", ({ conversationId }) => {
     socket.to(`conversation:${conversationId}`).emit("typing:start", {
       conversationId,
@@ -129,7 +120,6 @@ function registerChatHandlers(io, socket) {
     });
   });
 
-  // Check if specific users are online
   socket.on("users:online", ({ userIds }, ack) => {
     if (!Array.isArray(userIds) || !ack) return;
     const status = {};
@@ -139,7 +129,6 @@ function registerChatHandlers(io, socket) {
     ack({ status });
   });
 
-  // ─── Disconnect ────────────────────────────────────────────────────────
   socket.on("disconnect", () => {
     removeUser(userId, socket.id);
     socket.broadcast.emit("user:online", { userId, online: false });
@@ -147,5 +136,4 @@ function registerChatHandlers(io, socket) {
   });
 }
 
-// `isUserOnline` is exported for potential use by other socket modules.
 module.exports = { registerChatHandlers, isUserOnline };

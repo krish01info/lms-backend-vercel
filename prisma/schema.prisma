@@ -128,23 +128,10 @@ model User {
   conversationsAs2 Conversation[] @relation("ConversationParticipant2")
   messages Message[]
   aiDocuments   AiDocument[]
-  parentLinks   ParentChild[]      @relation("ParentOf")   // PARENT role: confirmed children
-  childLinks    ParentChild[]      @relation("ChildOf")    // STUDENT role: confirmed parents
+  parentLinksAsParent   ParentStudentLink[] @relation("ParentLinks")
+  parentLinksAsStudent  ParentStudentLink[] @relation("StudentLinks")
   parentRequestsSent     ParentLinkRequest[] @relation("ParentRequests")
   childRequestsReceived  ParentLinkRequest[] @relation("ChildRequests")
-  @@map("users")
-}
-
-// ─── Parent-Child Link (Confirmed) ───────────────────────────────────────────
-model ParentChild {
-  id        String   @id @default(uuid())
-  parentId  String
-  childId   String
-  createdAt DateTime @default(now())
-
-  // Parent-Student relations
-  parentLinks   ParentStudentLink[] @relation("ParentLinks")
-  studentLinks  ParentStudentLink[] @relation("StudentLinks")
 
   @@map("users")
 }

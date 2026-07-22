@@ -3,6 +3,7 @@ const router = express.Router();
 const { handleUpload, uploadAvatar } = require("../../middleware/upload.middleware");
 const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
+const ApiError = require("../../utils/ApiError");
 const { protect, requireRole } = require("../../middleware/auth.middleware");
 const ROLES = require("../../constants/roles");
 const { getMe, updateMe, getMyTeachingStats } = require("./users.controller");
@@ -115,8 +116,6 @@ router.post(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
-
     // Generate a cryptographically random 6-char code (uppercase alphanumeric)
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusable chars (O/0, I/1)
     let code = "";
@@ -144,8 +143,6 @@ router.get(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
-
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: { parentInviteCode: true, parentInviteExpiry: true },
@@ -172,8 +169,6 @@ router.get(
   })
 );
 
-module.exports = router;
-
 // ─── GET /api/v1/users/link-requests ──────────────────────────────────────────
 // Student fetches all pending parent link requests they need to respond to.
 const studentRouter = express.Router();
@@ -183,8 +178,6 @@ studentRouter.get(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
-
     const requests = await prisma.parentLinkRequest.findMany({
       where: { childId: req.user.id, status: "PENDING" },
       include: {
@@ -209,7 +202,6 @@ studentRouter.post(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
     const { requestId } = req.params;
     const { action } = req.body;
 
