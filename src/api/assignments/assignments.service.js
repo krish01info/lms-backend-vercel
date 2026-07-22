@@ -4,24 +4,53 @@ const ROLES = require("../../constants/roles");
 
 // Fields returned to the client for every assignment.
 // Mirrors the `quizSelect` pattern in quizzes.service.js.
-const assignmentSelect = {
-  id: true,
-  title: true,
-  description: true,
-  courseId: true,
-  dueDate: true,
-  createdAt: true,
-  updatedAt: true,
-  course: { select: { id: true, title: true } },
-  _count: { select: { submissions: true } },
+// For students, also pulls their own submission (if any) so the client can
+// show real Pending/Submitted/Graded/Overdue status without a second call.
+const assignmentSelect = (userId, role) => {
+  const isPrivileged = [ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(role);
+
+  return {
+    id: true,
+    title: true,
+    description: true,
+    courseId: true,
+    dueDate: true,
+    createdAt: true,
+    updatedAt: true,
+    course: { select: { id: true, title: true } },
+    _count: { select: { submissions: true } },
+    ...(!isPrivileged && {
+      submissions: {
+        where: { userId },
+        select: { id: true, grade: true, feedback: true, fileUrl: true, createdAt: true },
+      },
+    }),
+  };
 };
 
-// Reshapes Prisma's _count object into a flat, friendly field.
-const formatAssignment = (assignment) => ({
-  ...assignment,
-  submissionCount: assignment._count.submissions,
-  _count: undefined,
-});
+// Reshapes Prisma's _count object into a flat, friendly field, and — for
+// students — derives a single `status` field (pending/submitted/graded/overdue)
+// plus `mySubmission` from the filtered `submissions` array above.
+const formatAssignment = (assignment) => {
+  const mySubmission = assignment.submissions?.[0] ?? null;
+  const isOverdue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
+
+  let status;
+  if (mySubmission) {
+    status = mySubmission.grade !== null && mySubmission.grade !== undefined ? "graded" : "submitted";
+  } else {
+    status = isOverdue ? "overdue" : "pending";
+  }
+
+  return {
+    ...assignment,
+    submissionCount: assignment._count.submissions,
+    _count: undefined,
+    submissions: undefined,
+    mySubmission,
+    status,
+  };
+};
 
 const submissionSelect = {
   id: true,
@@ -91,7 +120,7 @@ const createAssignment = async ({ title, description, courseId, dueDate, userId,
       ...(description !== undefined && { description }),
       ...(dueDate !== undefined && { dueDate }),
     },
-    select: assignmentSelect,
+    select: assignmentSelect(userId, role),
   });
 
   return formatAssignment(assignment);
@@ -123,7 +152,7 @@ const getAssignments = async ({ courseId, page = 1, limit = 20, userId, role }) 
   const [assignments, total] = await Promise.all([
     prisma.assignment.findMany({
       where,
-      select: assignmentSelect,
+      select: assignmentSelect(userId, role),
       orderBy: { createdAt: "desc" },
       skip,
       take: Number(limit),
@@ -157,7 +186,10 @@ const getAssignments = async ({ courseId, page = 1, limit = 20, userId, role }) 
 
 // GET /api/v1/assignments/:id
 const getAssignmentById = async (id, userId, role) => {
-  const assignment = await prisma.assignment.findUnique({ where: { id }, select: assignmentSelect });
+  const assignment = await prisma.assignment.findUnique({
+    where: { id },
+    select: assignmentSelect(userId, role),
+  });
   if (!assignment) throw new ApiError(404, "Assignment not found.");
 
   await assertCanView(assignment.courseId, userId, role);
@@ -182,7 +214,7 @@ const updateAssignment = async (id, { title, description, dueDate }, userId, rol
       ...(description !== undefined && { description }),
       ...(dueDate !== undefined && { dueDate }),
     },
-    select: assignmentSelect,
+    select: assignmentSelect(userId, role),
   });
 
   return formatAssignment(updated);
