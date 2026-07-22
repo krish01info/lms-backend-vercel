@@ -222,9 +222,9 @@ studentRouter.post(
 
     if (action === "accept") {
       // Create the confirmed link
-      await prisma.parentChild.upsert({
-        where: { parentId_childId: { parentId: request.parentId, childId: request.childId } },
-        create: { parentId: request.parentId, childId: request.childId },
+      await prisma.parentStudentLink.upsert({
+        where: { parentId_studentId: { parentId: request.parentId, studentId: request.childId } },
+        create: { parentId: request.parentId, studentId: request.childId },
         update: {},
       });
       // Clear invite code (one-time use)
@@ -235,11 +235,11 @@ studentRouter.post(
     }
 
     // Update request status
-    await prisma.parentLinkRequest.update({
-      where: { id: requestId },
-      data: { status: action === "accept" ? "ACCEPTED" : "REJECTED" },
-    });
-
+    await prisma.parentStudentLink.upsert({
+        where: { parentId_studentId: { parentId: request.parentId, studentId: request.childId } },
+        create: { parentId: request.parentId, studentId: request.childId },
+        update: {},
+      });
     const message = action === "accept"
       ? `You are now linked to ${request.parent.name}'s account.`
       : "Link request rejected.";
