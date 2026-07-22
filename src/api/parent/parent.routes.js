@@ -8,8 +8,8 @@ const ROLES = require("../../constants/roles");
 const { prisma } = require("../../config/database");
 
 // ─── POST /api/v1/parent/children ─────────────────────────────────────────────
-// Link a child student account to the logged-in parent using a student-generated
-// invite code. The student generates the code from their Profile page.
+// Parent sends a link request to a student using their invite code.
+// This creates a PENDING ParentLinkRequest — the student must accept it.
 router.post(
   "/children",
   protect,
@@ -44,30 +44,38 @@ router.post(
       throw new ApiError(410, "This invite code has expired. Ask your child to generate a new one.");
     }
 
-    // Check if already linked
-    const existing = await prisma.parentChild.findUnique({
+    // Check if already confirmed
+    const existingLink = await prisma.parentChild.findUnique({
       where: { parentId_childId: { parentId, childId: child.id } },
     });
-    if (existing) throw new ApiError(409, "This student is already linked to your account.");
+    if (existingLink) throw new ApiError(409, "This student is already linked to your account.");
 
-    // Create the link
-    await prisma.parentChild.create({ data: { parentId, childId: child.id } });
+    // Check if a pending request already exists
+    const existingRequest = await prisma.parentLinkRequest.findUnique({
+      where: { parentId_childId: { parentId, childId: child.id } },
+    });
+    if (existingRequest && existingRequest.status === "PENDING") {
+      throw new ApiError(409, "A link request is already pending — waiting for student approval.");
+    }
 
-    // Invalidate the code — one-time use
-    await prisma.user.update({
-      where: { id: child.id },
-      data: { parentInviteCode: null, parentInviteExpiry: null },
+    // Upsert (in case a rejected request exists, re-create it as PENDING)
+    await prisma.parentLinkRequest.upsert({
+      where: { parentId_childId: { parentId, childId: child.id } },
+      create: { parentId, childId: child.id, status: "PENDING" },
+      update: { status: "PENDING" },
     });
 
     return res.status(201).json(
-      new ApiResponse(201, { child: { id: child.id, name: child.name, email: child.email, avatar: child.avatar } }, "Student linked to your account successfully.")
+      new ApiResponse(201, {
+        child: { id: child.id, name: child.name, email: child.email, avatar: child.avatar },
+        status: "PENDING",
+      }, "Link request sent! Waiting for student approval.")
     );
   })
 );
 
-
 // ─── GET /api/v1/parent/children ──────────────────────────────────────────────
-// List all children linked to the logged-in parent.
+// List all CONFIRMED children linked to the logged-in parent.
 router.get(
   "/children",
   protect,
@@ -92,8 +100,33 @@ router.get(
   })
 );
 
+// ─── GET /api/v1/parent/pending-requests ──────────────────────────────────────
+// List all pending link requests sent by the parent (awaiting student approval).
+router.get(
+  "/pending-requests",
+  protect,
+  requireRole(ROLES.PARENT),
+  asyncHandler(async (req, res) => {
+    const parentId = req.user.id;
+
+    const requests = await prisma.parentLinkRequest.findMany({
+      where: { parentId, status: "PENDING" },
+      include: {
+        child: {
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, { requests }, "Pending requests fetched.")
+    );
+  })
+);
+
 // ─── DELETE /api/v1/parent/children/:childId ──────────────────────────────────
-// Unlink a child from the parent account.
+// Unlink a confirmed child from the parent account.
 router.delete(
   "/children/:childId",
   protect,
@@ -116,8 +149,6 @@ router.delete(
 );
 
 // ─── GET /api/v1/parent/children/:childId/overview ────────────────────────────
-// Full academic overview for a linked child:
-//   courses enrolled, progress %, attendance summary, recent assignments.
 router.get(
   "/children/:childId/overview",
   protect,
@@ -126,7 +157,6 @@ router.get(
     const parentId = req.user.id;
     const { childId } = req.params;
 
-    // Verify parent is linked to this child
     const link = await prisma.parentChild.findUnique({
       where: { parentId_childId: { parentId, childId } },
     });

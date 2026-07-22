@@ -126,3 +126,86 @@ router.get(
 
 module.exports = router;
 
+// ─── GET /api/v1/users/link-requests ──────────────────────────────────────────
+// Student fetches all pending parent link requests they need to respond to.
+const studentRouter = express.Router();
+
+studentRouter.get(
+  "/link-requests",
+  protect,
+  requireRole(ROLES.STUDENT),
+  asyncHandler(async (req, res) => {
+    const { prisma } = require("../../config/database");
+
+    const requests = await prisma.parentLinkRequest.findMany({
+      where: { childId: req.user.id, status: "PENDING" },
+      include: {
+        parent: {
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, { requests }, "Pending link requests fetched.")
+    );
+  })
+);
+
+// ─── POST /api/v1/users/link-requests/:requestId/respond ──────────────────────
+// Student accepts or rejects a parent link request.
+// Body: { action: "accept" | "reject" }
+studentRouter.post(
+  "/link-requests/:requestId/respond",
+  protect,
+  requireRole(ROLES.STUDENT),
+  asyncHandler(async (req, res) => {
+    const { prisma } = require("../../config/database");
+    const { requestId } = req.params;
+    const { action } = req.body;
+
+    if (!["accept", "reject"].includes(action)) {
+      throw new ApiError(400, "action must be 'accept' or 'reject'.");
+    }
+
+    const request = await prisma.parentLinkRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        parent: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!request) throw new ApiError(404, "Link request not found.");
+    if (request.childId !== req.user.id) throw new ApiError(403, "You cannot respond to this request.");
+    if (request.status !== "PENDING") throw new ApiError(400, "This request has already been responded to.");
+
+    if (action === "accept") {
+      // Create the confirmed link
+      await prisma.parentChild.upsert({
+        where: { parentId_childId: { parentId: request.parentId, childId: request.childId } },
+        create: { parentId: request.parentId, childId: request.childId },
+        update: {},
+      });
+      // Clear invite code (one-time use)
+      await prisma.user.update({
+        where: { id: req.user.id },
+        data: { parentInviteCode: null, parentInviteExpiry: null },
+      });
+    }
+
+    // Update request status
+    await prisma.parentLinkRequest.update({
+      where: { id: requestId },
+      data: { status: action === "accept" ? "ACCEPTED" : "REJECTED" },
+    });
+
+    const message = action === "accept"
+      ? `You are now linked to ${request.parent.name}'s account.`
+      : "Link request rejected.";
+
+    return res.status(200).json(new ApiResponse(200, null, message));
+  })
+);
+
+module.exports = { router, studentRouter };

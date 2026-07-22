@@ -124,12 +124,14 @@ model User {
   attendanceRecords AttendanceRecord[] @relation("AttendanceOf")
   attendanceRecordsMarked AttendanceRecord[] @relation("AttendanceMarkedBy")
   aiDocuments   AiDocument[]
-  parentLinks   ParentChild[]   @relation("ParentOf")   // PARENT role: children linked
-  childLinks    ParentChild[]   @relation("ChildOf")    // STUDENT role: parents linked
+  parentLinks   ParentChild[]      @relation("ParentOf")   // PARENT role: confirmed children
+  childLinks    ParentChild[]      @relation("ChildOf")    // STUDENT role: confirmed parents
+  parentRequestsSent     ParentLinkRequest[] @relation("ParentRequests")
+  childRequestsReceived  ParentLinkRequest[] @relation("ChildRequests")
   @@map("users")
 }
 
-// ─── Parent-Child Link ────────────────────────────────────────────────────────
+// ─── Parent-Child Link (Confirmed) ───────────────────────────────────────────
 model ParentChild {
   id        String   @id @default(uuid())
   parentId  String
@@ -141,6 +143,28 @@ model ParentChild {
 
   @@unique([parentId, childId])
   @@map("parent_children")
+}
+
+enum LinkRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// ─── Parent Link Request (Pending Approval) ───────────────────────────────────
+model ParentLinkRequest {
+  id        String            @id @default(uuid())
+  parentId  String
+  childId   String
+  status    LinkRequestStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  parent    User @relation("ParentRequests", fields: [parentId], references: [id], onDelete: Cascade)
+  child     User @relation("ChildRequests",  fields: [childId],  references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@map("parent_link_requests")
 }
 
 model Course {
