@@ -24,6 +24,7 @@ const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes  = require("./api/attendance/attendance.routes");
 const gradebookRoutes   = require("./api/gradebook/gradebook.routes");
 const notificationRoutes = require("./api/notifications/notifications.routes");
+const announcementRoutes = require("./api/announcements/announcements.routes");
 const paymentRoutes     = require("./api/payments/payments.routes");
 const activityRoutes    = require("./api/activity/activity.routes");
 const aiTutorRoutes     = require("./api/ai-tutor/aiTutor.routes");
