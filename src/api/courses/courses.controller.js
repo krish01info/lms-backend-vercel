@@ -45,14 +45,13 @@ const createCourse = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, { course }, "Course created successfully."));
 });
 
-// PATCH /api/v1/courses/:id — update course details (instructor owns it, or admin)
+// PATCH /api/v1/courses/:id — update course details
 const updateCourse = asyncHandler(async (req, res) => {
-  const isAdmin = req.user.role === ROLES.ADMIN || req.user.role === ROLES.SUPER_ADMIN;
   const course = await CourseService.updateCourse(
     req.params.id,
-    req.user.id,
     req.body,
-    isAdmin
+    req.user.id,
+    req.user.role
   );
   return res.status(200).json(new ApiResponse(200, { course }, "Course updated successfully."));
 });
