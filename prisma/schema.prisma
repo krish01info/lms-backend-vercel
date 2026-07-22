@@ -123,6 +123,9 @@ model User {
   uploadedResources Resource[]
   attendanceRecords AttendanceRecord[] @relation("AttendanceOf")
   attendanceRecordsMarked AttendanceRecord[] @relation("AttendanceMarkedBy")
+  conversationsAs1 Conversation[] @relation("ConversationParticipant1")
+  conversationsAs2 Conversation[] @relation("ConversationParticipant2")
+  messages Message[]
   aiDocuments   AiDocument[]
   parentLinks   ParentChild[]      @relation("ParentOf")   // PARENT role: confirmed children
   childLinks    ParentChild[]      @relation("ChildOf")    // STUDENT role: confirmed parents
@@ -421,6 +424,58 @@ model Payment {
   @@map("payments")
 }
 
+model Conversation {
+  id             String    @id @default(uuid())
+  participant1Id String
+  participant2Id String
+  lastMessageAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  participant1   User      @relation("ConversationParticipant1", fields: [participant1Id], references: [id])
+  participant2   User      @relation("ConversationParticipant2", fields: [participant2Id], references: [id])
+  messages       Message[]
+
+  @@unique([participant1Id, participant2Id])
+  @@map("conversations")
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id])
+
+  @@map("messages")
+}
+
+// ─── Existing DB tables not tracked in schema yet ─────────────────────────
+
+model admin_audit_logs {
+  id         String   @id
+  adminId    String
+  adminName  String
+  adminEmail String
+  action     String
+  targetType String?
+  targetId   String?
+  details    String?
+  createdAt  DateTime @default(now())
+}
+
+model system_settings {
+  id        String   @id
+  key       String   @unique
+  value     String
+  updatedAt DateTime
+}
+
+// ─── AI Tutor ─────────────────────────────────────────
 
 model AiDocument {
   id           String           @id @default(uuid())

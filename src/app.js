@@ -24,10 +24,17 @@ const certificateRoutes = require("./api/certificates/certificates.routes");
 const attendanceRoutes  = require("./api/attendance/attendance.routes");
 const gradebookRoutes   = require("./api/gradebook/gradebook.routes");
 const notificationRoutes = require("./api/notifications/notifications.routes");
+
+const announcementRoutes = require("./api/announcements/announcements.routes");
+const messageRoutes = require("./api/messages/messages.routes");
+const paymentRoutes = require("./api/payments/payments.routes");
+const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
+
 const paymentRoutes     = require("./api/payments/payments.routes");
 const activityRoutes    = require("./api/activity/activity.routes");
 const aiTutorRoutes     = require("./api/ai-tutor/aiTutor.routes");
 const parentRoutes      = require("./api/parent/parent.routes");
+
 
 const app = express();
 
@@ -101,10 +108,16 @@ app.use(`${API}/attendance`,   attendanceRoutes);
 app.use(`${API}/gradebook`,    gradebookRoutes);
 app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/announcements`, announcementRoutes);
+
+app.use(`${API}/messages`, messageRoutes);
+app.use(`${API}/payments`, paymentRoutes);
+app.use(`${API}/ai-tutor`, aiTutorRoutes);
+
 app.use(`${API}/payments`,     paymentRoutes);
 app.use(`${API}/activity`,     activityRoutes);
 app.use(`${API}/ai-tutor`,     aiTutorRoutes);
 app.use(`${API}/parent`,       parentRoutes);
+
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
