@@ -59,4 +59,70 @@ router.patch(
   })
 );
 
+// ─── POST /api/v1/users/generate-parent-code ──────────────────────────────────
+// Student generates a one-time 6-char alphanumeric invite code valid for 24h.
+// The parent enters this code to link themselves to the student.
+router.post(
+  "/generate-parent-code",
+  protect,
+  requireRole(ROLES.STUDENT),
+  asyncHandler(async (req, res) => {
+    const { prisma } = require("../../config/database");
+
+    // Generate a cryptographically random 6-char code (uppercase alphanumeric)
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusable chars (O/0, I/1)
+    let code = "";
+    for (let i = 0; i < 6; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { parentInviteCode: code, parentInviteExpiry: expiry },
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, { code, expiresAt: expiry }, "Invite code generated successfully.")
+    );
+  })
+);
+
+// ─── GET /api/v1/users/parent-code ────────────────────────────────────────────
+// Student fetches their current invite code (if valid and not expired).
+router.get(
+  "/parent-code",
+  protect,
+  requireRole(ROLES.STUDENT),
+  asyncHandler(async (req, res) => {
+    const { prisma } = require("../../config/database");
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { parentInviteCode: true, parentInviteExpiry: true },
+    });
+
+    const now = new Date();
+    const isValid =
+      user?.parentInviteCode &&
+      user?.parentInviteExpiry &&
+      user.parentInviteExpiry > now;
+
+    if (!isValid) {
+      return res.status(200).json(
+        new ApiResponse(200, { code: null, expiresAt: null }, "No active invite code.")
+      );
+    }
+
+    return res.status(200).json(
+      new ApiResponse(200, {
+        code: user.parentInviteCode,
+        expiresAt: user.parentInviteExpiry,
+      }, "Active invite code fetched.")
+    );
+  })
+);
+
 module.exports = router;
+

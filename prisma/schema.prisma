@@ -105,6 +105,8 @@ model User {
   role          Role      @default(STUDENT)
   isVerified    Boolean   @default(false)
   isActive      Boolean   @default(true)
+  parentInviteCode     String?   @unique
+  parentInviteExpiry   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

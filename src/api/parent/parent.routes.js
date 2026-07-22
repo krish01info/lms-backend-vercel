@@ -8,25 +8,41 @@ const ROLES = require("../../constants/roles");
 const { prisma } = require("../../config/database");
 
 // ─── POST /api/v1/parent/children ─────────────────────────────────────────────
-// Link a child student account to the logged-in parent by student email.
+// Link a child student account to the logged-in parent using a student-generated
+// invite code. The student generates the code from their Profile page.
 router.post(
   "/children",
   protect,
   requireRole(ROLES.PARENT),
   asyncHandler(async (req, res) => {
     const parentId = req.user.id;
-    const { childEmail } = req.body;
+    const { inviteCode } = req.body;
 
-    if (!childEmail) throw new ApiError(400, "childEmail is required.");
+    if (!inviteCode) throw new ApiError(400, "inviteCode is required.");
 
+    const code = inviteCode.trim().toUpperCase();
+
+    // Find student by invite code
     const child = await prisma.user.findUnique({
-      where: { email: childEmail.trim().toLowerCase() },
-      select: { id: true, name: true, email: true, role: true, avatar: true },
+      where: { parentInviteCode: code },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+        parentInviteExpiry: true,
+      },
     });
 
-    if (!child) throw new ApiError(404, "No user found with that email address.");
+    if (!child) throw new ApiError(404, "Invalid invite code. Ask your child to generate a new one.");
     if (child.role !== ROLES.STUDENT) throw new ApiError(400, "The linked account must be a Student.");
     if (child.id === parentId) throw new ApiError(400, "You cannot link your own account as a child.");
+
+    // Check expiry
+    if (!child.parentInviteExpiry || child.parentInviteExpiry < new Date()) {
+      throw new ApiError(410, "This invite code has expired. Ask your child to generate a new one.");
+    }
 
     // Check if already linked
     const existing = await prisma.parentChild.findUnique({
@@ -34,13 +50,21 @@ router.post(
     });
     if (existing) throw new ApiError(409, "This student is already linked to your account.");
 
+    // Create the link
     await prisma.parentChild.create({ data: { parentId, childId: child.id } });
 
+    // Invalidate the code — one-time use
+    await prisma.user.update({
+      where: { id: child.id },
+      data: { parentInviteCode: null, parentInviteExpiry: null },
+    });
+
     return res.status(201).json(
-      new ApiResponse(201, { child }, "Student linked to your account successfully.")
+      new ApiResponse(201, { child: { id: child.id, name: child.name, email: child.email, avatar: child.avatar } }, "Student linked to your account successfully.")
     );
   })
 );
+
 
 // ─── GET /api/v1/parent/children ──────────────────────────────────────────────
 // List all children linked to the logged-in parent.
