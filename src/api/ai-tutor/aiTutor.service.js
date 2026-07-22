@@ -306,7 +306,7 @@ const buildDocumentFilter = async ({ userId, documentIds }) => {
 const retrieveRelevantChunks = async ({ question, userId, documentIds, topK }) => {
   const accessibleDocumentIds = await buildDocumentFilter({ userId, documentIds });
   if (accessibleDocumentIds.length === 0) {
-    throw new ApiError(400, "Upload and index at least one PDF before asking questions.");
+    return [];
   }
 
   const chunks = await prisma.aiDocumentChunk.findMany({
@@ -323,7 +323,7 @@ const retrieveRelevantChunks = async ({ question, userId, documentIds, topK }) =
   });
 
   if (chunks.length === 0) {
-    throw new ApiError(400, "No indexed chunks are available for your PDFs yet.");
+    return [];
   }
 
   const queryEmbedding = await getEmbeddings().embedQuery(question);
@@ -362,20 +362,37 @@ const askQuestion = async ({ question, userId, documentIds, topK = DEFAULT_TOP_K
     topK: safeTopK,
   });
 
-  const context = buildContext(chunks);
   const model = getChatModel();
+  let messages = [];
 
-  const response = await model.invoke([
-    {
-      role: "system",
-      content:
-        "You are the LearnLMS AI Tutor. Answer using only the provided PDF context. If the context is insufficient, say you do not know from the uploaded PDFs. Keep answers clear and helpful.",
-    },
-    {
-      role: "user",
-      content: `Context:\n${context}\n\nQuestion:\n${question.trim()}`,
-    },
-  ]);
+  if (chunks.length > 0) {
+    const context = buildContext(chunks);
+    messages = [
+      {
+        role: "system",
+        content:
+          "You are the LearnLMS AI Tutor, an intelligent educational assistant. Prioritize the provided PDF context if it is relevant to the user's question. If the provided context does not fully answer the question, supplement it with your general knowledge. Keep your answers clear, accurate, structured, and helpful.",
+      },
+      {
+        role: "user",
+        content: `PDF Context:\n${context}\n\nUser Question:\n${question.trim()}`,
+      },
+    ];
+  } else {
+    messages = [
+      {
+        role: "system",
+        content:
+          "You are the LearnLMS AI Tutor, an intelligent, helpful, and friendly educational AI chatbot. Answer the user's questions clearly, accurately, and thoroughly with step-by-step explanations, examples, or code where applicable.",
+      },
+      {
+        role: "user",
+        content: question.trim(),
+      },
+    ];
+  }
+
+  const response = await model.invoke(messages);
 
   return {
     answer: typeof response.content === "string" ? response.content : JSON.stringify(response.content),

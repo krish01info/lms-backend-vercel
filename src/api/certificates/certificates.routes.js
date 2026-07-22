@@ -1,12 +1,11 @@
-﻿const express = require("express")
+const express = require("express")
 const router = express.Router()
 const asyncHandler = require("../../utils/asyncHandler")
 const ApiResponse = require("../../utils/ApiResponse")
 const ApiError = require("../../utils/ApiError")
 const { protect, requireRole } = require("../../middleware/auth.middleware")
 const ROLES = require("../../constants/roles")
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const { prisma } = require('../../config/database')
 
 // GET /api/v1/certificates/my
 // Returns all certificates earned by the logged-in student.

@@ -1,3 +1,4 @@
+
 const express = require("express");
 const router = express.Router({ mergeParams: true });
 
@@ -21,6 +22,43 @@ const {
   deleteLesson,
   reorderLessons,
 } = require("./lessons.controller");
+
+const express = require("express")
+const router = express.Router({ mergeParams: true })
+const asyncHandler = require("../../utils/asyncHandler")
+const ApiResponse = require("../../utils/ApiResponse")
+const ApiError = require("../../utils/ApiError")
+const { protect, requireRole, checkEnrollment } = require("../../middleware/auth.middleware")
+const { handleUpload, uploadLessonVideo } = require("../../middleware/upload.middleware")
+const ROLES = require("../../constants/roles")
+const { prisma } = require('../../config/database')
+
+// GET /api/v1/courses/:courseId/lessons
+router.get('/',
+  protect,
+  checkEnrollment,
+  asyncHandler(async (req, res) => {
+    const { courseId } = req.params
+    const lessons = await prisma.lesson.findMany({
+      where: { courseId },
+      orderBy: { order: 'asc' },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        type: true,
+        duration: true,
+        order: true,
+        isPreview: true,
+        videoUrl: true,
+        content: true,
+      }
+    })
+    return res.status(200).json(
+      new ApiResponse(200, { lessons }, 'Lessons fetched successfully.')
+    )
+  })
+)
 
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const asyncHandler = require("../../utils/asyncHandler");
