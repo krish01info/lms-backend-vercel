@@ -26,16 +26,9 @@ const gradebookRoutes = require("./api/gradebook/gradebook.routes");
 const notificationRoutes = require("./api/notifications/notifications.routes");
 const announcementRoutes = require("./api/announcements/announcements.routes");
 const paymentRoutes = require("./api/payments/payments.routes");
-<<<<<<< HEAD
-const announcementRoutes = require("./api/announcements/announcements.routes");
 const activityRoutes = require("./api/activity/activity.routes");
-
-
- 
-=======
 const aiTutorRoutes = require("./api/ai-tutor/aiTutor.routes");
 const parentRoutes = require("./api/parent/parent.routes");
->>>>>>> 487da2f3a38aa666dd0b67093e0c6bd1d6661281
 const app = express();
  
 app.use(passport.initialize());
@@ -114,16 +107,9 @@ app.use(`${API}/gradebook`, gradebookRoutes);
 app.use(`${API}/notifications`, notificationRoutes);
 app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/payments`, paymentRoutes);
-<<<<<<< HEAD
-app.use(`${API}/announcements`, announcementRoutes);
 app.use(`${API}/activity`, activityRoutes);
-
-
-
-=======
 app.use(`${API}/ai-tutor`, aiTutorRoutes);
-app.use(`${API}/parent`,   parentRoutes);
->>>>>>> 487da2f3a38aa666dd0b67093e0c6bd1d6661281
+app.use(`${API}/parent`, parentRoutes);
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });
