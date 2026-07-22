@@ -1,4 +1,3 @@
-
 const express = require("express");
 const router = express.Router({ mergeParams: true });
 
@@ -6,6 +5,11 @@ const { protect, requireRole, checkEnrollment } = require("../../middleware/auth
 const { handleUpload, uploadLessonVideo } = require("../../middleware/upload.middleware");
 const validate = require("../../middleware/validate.middleware");
 const ROLES = require("../../constants/roles");
+const asyncHandler = require("../../utils/asyncHandler");
+const ApiResponse = require("../../utils/ApiResponse");
+const ApiError = require("../../utils/ApiError");
+const { prisma } = require('../../config/database');
+const { uploadToCloudinary } = require("../../utils/cloudinary");
 
 const {
   createLessonSchema,
@@ -22,47 +26,6 @@ const {
   deleteLesson,
   reorderLessons,
 } = require("./lessons.controller");
-
-const express = require("express")
-const router = express.Router({ mergeParams: true })
-const asyncHandler = require("../../utils/asyncHandler")
-const ApiResponse = require("../../utils/ApiResponse")
-const ApiError = require("../../utils/ApiError")
-const { protect, requireRole, checkEnrollment } = require("../../middleware/auth.middleware")
-const { handleUpload, uploadLessonVideo } = require("../../middleware/upload.middleware")
-const ROLES = require("../../constants/roles")
-const { prisma } = require('../../config/database')
-
-// GET /api/v1/courses/:courseId/lessons
-router.get('/',
-  protect,
-  checkEnrollment,
-  asyncHandler(async (req, res) => {
-    const { courseId } = req.params
-    const lessons = await prisma.lesson.findMany({
-      where: { courseId },
-      orderBy: { order: 'asc' },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        type: true,
-        duration: true,
-        order: true,
-        isPreview: true,
-        videoUrl: true,
-        content: true,
-      }
-    })
-    return res.status(200).json(
-      new ApiResponse(200, { lessons }, 'Lessons fetched successfully.')
-    )
-  })
-)
-
-const { uploadToCloudinary } = require("../../utils/cloudinary");
-const asyncHandler = require("../../utils/asyncHandler");
-const ApiResponse = require("../../utils/ApiResponse");
 
 // GET /api/v1/courses/:courseId/lessons — enrolled students or instructor/admin
 router.get("/", protect, checkEnrollment, getLessons);
@@ -126,8 +89,8 @@ router.post(
     const uploadResult = await uploadToCloudinary(req.file.buffer, "lessons", "video");
 
     // Update the lesson with the video URL
-    const { updateLesson } = require("./lessons.service");
-    await updateLesson(courseId, lessonId, { videoUrl: uploadResult.secure_url }, req.user.id, req.user.role);
+    const { updateLesson: updateLessonService } = require("./lessons.service");
+    await updateLessonService(courseId, lessonId, { videoUrl: uploadResult.secure_url }, req.user.id, req.user.role);
 
     return res.status(200).json(
       new ApiResponse(200, {
