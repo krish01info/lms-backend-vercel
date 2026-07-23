@@ -30,6 +30,7 @@ const paymentRoutes       = require("./api/payments/payments.routes");
 const activityRoutes      = require("./api/activity/activity.routes");
 const aiTutorRoutes       = require("./api/ai-tutor/aiTutor.routes");
 const parentRoutes        = require("./api/parent/parent.routes");
+const feesRoutes = require("./api/fees/fees.routes");
 
 const app = express();
 
@@ -119,6 +120,7 @@ app.use(`${API}/payments`,      paymentRoutes);
 app.use(`${API}/activity`,      activityRoutes);
 app.use(`${API}/ai-tutor`,      aiTutorRoutes);
 app.use(`${API}/parent`,        parentRoutes);
+app.use(`${API}/fees`, feesRoutes);
 
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
