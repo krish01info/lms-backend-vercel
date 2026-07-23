@@ -67,19 +67,20 @@ const config = {
   clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
 };
 
-// Validate critical env variables.
-// NOTE: process.exit(1) is intentionally NOT used here. This file is
-// require()'d by nearly every other module (including app.js) on every
-// cold start. Calling process.exit() here kills the entire serverless
-// function instantly, before api/index.js's own try/catch can run -
-// producing a raw platform-level crash (FUNCTION_INVOCATION_FAILED)
-// instead of a clean JSON error response. Throwing lets callers handle it.
+// NOTE: We do NOT throw or process.exit() here anymore. This file is
+// require()'d by nearly every module (including app.js) on every cold
+// start. Throwing/exiting here kills the whole serverless function before
+// Express can route ANY request - even brand new diagnostic routes that
+// don't need these values at all. Instead we just record what's missing,
+// so the app always boots, and code that actually needs a specific value
+// (like connectDB) can check and fail gracefully on its own.
 const required = ["DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
   console.error(`Missing required environment variable(s): ${missing.join(", ")}`);
-  throw new Error(`Missing required environment variable(s): ${missing.join(", ")}`);
 }
+
+config.missingEnvVars = missing;
 
 module.exports = config;
