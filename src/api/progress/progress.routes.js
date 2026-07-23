@@ -64,9 +64,11 @@ router.get('/my/weekly-hours',
   protect,
   asyncHandler(async (req, res) => {
     const userId = req.user.id
-    const since = new Date()
-    since.setDate(since.getDate() - 6)
-    since.setHours(0, 0, 0, 0)
+
+    // Build the 7-day window using UTC consistently, so it matches
+    // the UTC dates produced by updatedAt.toISOString() below.
+    const now = new Date()
+    const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6))
 
     const records = await prisma.lessonProgress.findMany({
       where: { userId, updatedAt: { gte: since } },
@@ -76,8 +78,7 @@ router.get('/my/weekly-hours',
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     const buckets = new Map() // 'YYYY-MM-DD' -> seconds
     for (let i = 0; i < 7; i++) {
-      const d = new Date(since)
-      d.setDate(since.getDate() + i)
+      const d = new Date(Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate() + i))
       buckets.set(d.toISOString().slice(0, 10), 0)
     }
 
@@ -87,7 +88,7 @@ router.get('/my/weekly-hours',
     }
 
     const weeklyHours = [...buckets.entries()].map(([key, seconds]) => ({
-      name: dayLabels[new Date(key).getDay()],
+      name: dayLabels[new Date(key).getUTCDay()],
       hours: Number((seconds / 3600).toFixed(1)),
     }))
 
