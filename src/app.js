@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
@@ -81,6 +81,17 @@ if (config.env === "development") {
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", env: config.env, timestamp: new Date().toISOString() });
+});
+
+// TEMPORARY diagnostic route - confirms which required env vars exist in
+// production WITHOUT exposing their values. Delete this after debugging.
+app.get("/debug-env", (req, res) => {
+  res.status(200).json({
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    hasJwtAccessSecret: !!process.env.JWT_ACCESS_SECRET,
+    hasJwtRefreshSecret: !!process.env.JWT_REFRESH_SECRET,
+    nodeEnv: process.env.NODE_ENV || null,
+  });
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
