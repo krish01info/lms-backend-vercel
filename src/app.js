@@ -111,7 +111,6 @@ app.use(`${API}/ai-tutor`,      aiTutorRoutes);
 app.use(`${API}/parent`,        parentRoutes);
 
 
-
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, statusCode: 404, message: `Route not found: ${req.method} ${req.originalUrl}` });

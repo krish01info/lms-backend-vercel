@@ -1,4 +1,4 @@
-﻿const asyncHandler = require("../../utils/asyncHandler");
+const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
 const EnrollmentService = require("./enrollments.service");
  

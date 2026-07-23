@@ -1,4 +1,4 @@
-﻿const ApiError = require("../../utils/ApiError");
+const ApiError = require("../../utils/ApiError");
  
 // Validates POST /api/v1/enrollments body
 const validateEnrollBody = (req, res, next) => {

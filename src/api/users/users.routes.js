@@ -3,11 +3,15 @@ const router = express.Router();
 const { handleUpload, uploadAvatar } = require("../../middleware/upload.middleware");
 const asyncHandler = require("../../utils/asyncHandler");
 const ApiResponse = require("../../utils/ApiResponse");
+const ApiError = require("../../utils/ApiError");
 const { protect, requireRole } = require("../../middleware/auth.middleware");
 const ROLES = require("../../constants/roles");
 const { getMe, updateMe, getMyTeachingStats } = require("./users.controller");
+const validate = require("../../middleware/validate.middleware");
+const { searchUsersSchema, updateMeSchema } = require("./users.validation");
 
 const { uploadToCloudinary } = require("../../utils/cloudinary");
+const { getPagination, buildPaginationMeta } = require("../../utils/pagination");
 const UserService = require("./users.service");
 const { prisma } = require("../../config/database");
 
@@ -19,9 +23,11 @@ router.get(
   "/search",
   protect,
   requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  validate(searchUsersSchema, "query"),
   asyncHandler(async (req, res) => {
-    const { q, role, page = 1, limit = 20 } = req.query;
-    
+    const { q, role } = req.query;
+    const { skip, take, page, limit } = getPagination(req.query);
+
     const where = {
       ...(q && {
         OR: [
@@ -33,15 +39,13 @@ router.get(
       isActive: true,
     };
 
-    const skip = (Number(page) - 1) * Number(limit);
-
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
         select: { id: true, name: true, email: true, role: true, avatar: true },
         orderBy: { name: "asc" },
         skip,
-        take: Number(limit),
+        take,
       }),
       prisma.user.count({ where }),
     ]);
@@ -49,7 +53,7 @@ router.get(
     return res.status(200).json(
       new ApiResponse(200, {
         users: users.map((u) => ({ ...u, role: u.role.toLowerCase() })),
-        pagination: { total, page: Number(page), limit: Number(limit), totalPages: Math.ceil(total / Number(limit)) },
+        pagination: buildPaginationMeta(total, page, limit),
       }, "Users fetched successfully.")
     );
   })
@@ -59,7 +63,7 @@ router.get(
 router.get("/me", protect, getMe);
 
 // PATCH /api/v1/users/me — update name / avatar url
-router.patch("/me", protect, updateMe);
+router.patch("/me", protect, validate(updateMeSchema), updateMe);
 
 // GET /api/v1/users/me/teaching-stats — aggregate teaching activity
 // (courses, students, quiz stats) for the instructor profile page
@@ -112,8 +116,6 @@ router.post(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
-
     // Generate a cryptographically random 6-char code (uppercase alphanumeric)
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusable chars (O/0, I/1)
     let code = "";
@@ -141,8 +143,6 @@ router.get(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
-
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       select: { parentInviteCode: true, parentInviteExpiry: true },
@@ -169,8 +169,6 @@ router.get(
   })
 );
 
-module.exports = router;
-
 // ─── GET /api/v1/users/link-requests ──────────────────────────────────────────
 // Student fetches all pending parent link requests they need to respond to.
 const studentRouter = express.Router();
@@ -180,8 +178,6 @@ studentRouter.get(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
-
     const requests = await prisma.parentLinkRequest.findMany({
       where: { childId: req.user.id, status: "PENDING" },
       include: {
@@ -206,7 +202,6 @@ studentRouter.post(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const { prisma } = require("../../config/database");
     const { requestId } = req.params;
     const { action } = req.body;
 
@@ -227,9 +222,9 @@ studentRouter.post(
 
     if (action === "accept") {
       // Create the confirmed link
-      await prisma.parentChild.upsert({
-        where: { parentId_childId: { parentId: request.parentId, childId: request.childId } },
-        create: { parentId: request.parentId, childId: request.childId },
+      await prisma.parentStudentLink.upsert({
+        where: { parentId_studentId: { parentId: request.parentId, studentId: request.childId } },
+        create: { parentId: request.parentId, studentId: request.childId },
         update: {},
       });
       // Clear invite code (one-time use)
@@ -240,11 +235,11 @@ studentRouter.post(
     }
 
     // Update request status
-    await prisma.parentLinkRequest.update({
-      where: { id: requestId },
-      data: { status: action === "accept" ? "ACCEPTED" : "REJECTED" },
-    });
-
+    await prisma.parentStudentLink.upsert({
+        where: { parentId_studentId: { parentId: request.parentId, studentId: request.childId } },
+        create: { parentId: request.parentId, studentId: request.childId },
+        update: {},
+      });
     const message = action === "accept"
       ? `You are now linked to ${request.parent.name}'s account.`
       : "Link request rejected.";

@@ -1,20 +1,28 @@
-﻿const express = require("express");
+const express = require("express");
 const router = express.Router();
 const { protect } = require("../../middleware/auth.middleware");
-const validate = require("../../middleware/validate.middleware");
-const { listQuerySchema, notificationIdParamSchema } = require("./notifications.validation");
-const { getMyNotifications, getUnreadCount, markAsRead, markAllAsRead } = require("./notifications.controller");
+const controller = require("./notifications.controller");
 
-// GET /api/v1/notifications/me?page=&limit=&unreadOnly=
-router.get("/me", protect, validate(listQuerySchema, "query"), getMyNotifications);
+// All notification routes require a logged-in user — a notification is
+// always scoped to req.user.id, nobody can read/edit anyone else's.
+router.use(protect);
+
+// GET /api/v1/notifications?page=1&limit=20&unread=true
+router.get("/", controller.getMyNotifications);
 
 // GET /api/v1/notifications/unread-count
-router.get("/unread-count", protect, getUnreadCount);
+router.get("/unread-count", controller.getUnreadCount);
 
-// PATCH /api/v1/notifications/:id/read
-router.patch("/:id/read", protect, validate(notificationIdParamSchema, "params"), markAsRead);
+// POST /api/v1/notifications/test — TEMP: manually trigger a live notification
+router.post("/test", controller.testNotification);
 
 // PATCH /api/v1/notifications/read-all
-router.patch("/read-all", protect, markAllAsRead);
+router.patch("/read-all", controller.markAllAsRead);
+
+// PATCH /api/v1/notifications/:notificationId/read
+router.patch("/:notificationId/read", controller.markAsRead);
+
+// DELETE /api/v1/notifications/:notificationId
+router.delete("/:notificationId", controller.deleteNotification);
 
 module.exports = router;

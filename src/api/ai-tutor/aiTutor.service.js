@@ -1,8 +1,7 @@
 const { ChatGroq } = require("@langchain/groq");
 const { Embeddings } = require("@langchain/core/embeddings");
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
-// pdf-parse is lazy-required inside extractPdfPages to avoid crashing
-// Vercel's serverless runtime at module-load time (v2.x has DOMMatrix issue)
+const { PDFParse } = require("pdf-parse");
 const config = require("../../config");
 const { prisma } = require("../../config/database");
 const ROLES = require("../../constants/roles");
@@ -130,16 +129,17 @@ const getTitleFromFilename = (filename) => {
 };
 
 const extractPdfPages = async (buffer) => {
-  // Lazy-require pdf-parse (v1.x) so it only loads when a PDF is processed,
-  // not at server startup — avoids crashing Vercel serverless on module init.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const pdfParse = require("pdf-parse");
-  const result = await pdfParse(buffer);
-  return {
-    text: result.text || "",
-    pages: [],          // v1.x doesn't expose per-page objects; chunking uses full text
-    totalPages: result.numpages || null,
-  };
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const result = await parser.getText();
+    return {
+      text: result.text || "",
+      pages: result.pages || [],
+      totalPages: result.total || result.pages?.length || null,
+    };
+  } finally {
+    await parser.destroy();
+  }
 };
 
 const splitPdfText = async (pages, fallbackText) => {
@@ -306,7 +306,7 @@ const buildDocumentFilter = async ({ userId, documentIds }) => {
 const retrieveRelevantChunks = async ({ question, userId, documentIds, topK }) => {
   const accessibleDocumentIds = await buildDocumentFilter({ userId, documentIds });
   if (accessibleDocumentIds.length === 0) {
-    return [];
+    throw new ApiError(400, "Upload and index at least one PDF before asking questions.");
   }
 
   const chunks = await prisma.aiDocumentChunk.findMany({
@@ -323,7 +323,7 @@ const retrieveRelevantChunks = async ({ question, userId, documentIds, topK }) =
   });
 
   if (chunks.length === 0) {
-    return [];
+    throw new ApiError(400, "No indexed chunks are available for your PDFs yet.");
   }
 
   const queryEmbedding = await getEmbeddings().embedQuery(question);
@@ -362,37 +362,20 @@ const askQuestion = async ({ question, userId, documentIds, topK = DEFAULT_TOP_K
     topK: safeTopK,
   });
 
+  const context = buildContext(chunks);
   const model = getChatModel();
-  let messages = [];
 
-  if (chunks.length > 0) {
-    const context = buildContext(chunks);
-    messages = [
-      {
-        role: "system",
-        content:
-          "You are the LearnLMS AI Tutor, an intelligent educational assistant. Prioritize the provided PDF context if it is relevant to the user's question. If the provided context does not fully answer the question, supplement it with your general knowledge. Keep your answers clear, accurate, structured, and helpful.",
-      },
-      {
-        role: "user",
-        content: `PDF Context:\n${context}\n\nUser Question:\n${question.trim()}`,
-      },
-    ];
-  } else {
-    messages = [
-      {
-        role: "system",
-        content:
-          "You are the LearnLMS AI Tutor, an intelligent, helpful, and friendly educational AI chatbot. Answer the user's questions clearly, accurately, and thoroughly with step-by-step explanations, examples, or code where applicable.",
-      },
-      {
-        role: "user",
-        content: question.trim(),
-      },
-    ];
-  }
-
-  const response = await model.invoke(messages);
+  const response = await model.invoke([
+    {
+      role: "system",
+      content:
+        "You are the LearnLMS AI Tutor. Answer using only the provided PDF context. If the context is insufficient, say you do not know from the uploaded PDFs. Keep answers clear and helpful.",
+    },
+    {
+      role: "user",
+      content: `Context:\n${context}\n\nQuestion:\n${question.trim()}`,
+    },
+  ]);
 
   return {
     answer: typeof response.content === "string" ? response.content : JSON.stringify(response.content),

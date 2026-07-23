@@ -2,15 +2,15 @@ const bcrypt = require("bcryptjs");
 const { prisma } = require("../../config/database");
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require("../../utils/jwtUtils");
 const ApiError = require("../../utils/ApiError");
+const { enqueueEmail } = require("../../queues/email.queue");
 
 // ─── Role mapping: frontend sends lowercase, DB stores uppercase ──────────────
 const normalizeRole = (role) => {
   const map = { 
-    student:    "STUDENT", 
-    teacher:    "INSTRUCTOR", 
+    student: "STUDENT", 
+    teacher: "INSTRUCTOR", 
     instructor: "INSTRUCTOR", 
-    admin:      "ADMIN",
-    parent:     "PARENT",
+    admin: "ADMIN" 
   };
   return map[role?.toLowerCase()] || "STUDENT";
 };
@@ -48,6 +48,13 @@ const register = async ({ name, email, password, role }) => {
 
   const accessToken = signAccessToken({ id: user.id, role: user.role });
   const refreshToken = signRefreshToken({ id: user.id });
+
+  // Fire-and-forget — never let a slow/broken mail queue block registration.
+  enqueueEmail({
+    to: user.email,
+    subject: "Welcome to LearnFlow!",
+    html: `<p>Hi ${user.name},</p><p>Your account has been created. Happy learning!</p>`,
+  }).catch(() => {});
 
   return { user: safeUser(user), accessToken, refreshToken };
 };

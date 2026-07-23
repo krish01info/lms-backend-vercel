@@ -1,4 +1,4 @@
-﻿const Joi = require("joi");
+const Joi = require("joi");
 
 const createQuizSchema = Joi.object({
   title: Joi.string().trim().min(3).max(150).required(),

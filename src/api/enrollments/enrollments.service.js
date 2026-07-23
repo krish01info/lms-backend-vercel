@@ -1,4 +1,4 @@
-﻿const { prisma } = require("../../config/database");
+const { prisma } = require("../../config/database");
 const ApiError = require("../../utils/ApiError");
  
 const enrollmentSelect = {
