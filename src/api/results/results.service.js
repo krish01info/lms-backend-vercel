@@ -11,6 +11,54 @@ const getMyResults = async (userId) => {
     where: { userId, status: { in: ["ACTIVE", "COMPLETED"] } },
     include: { course: { select: { id: true, title: true } } },
   });
+const getMyRank = async (userId) => {
+  // student ke enrolled courses
+  const enrollments = await prisma.enrollment.findMany({
+    where: { userId, status: { in: ['ACTIVE', 'COMPLETED'] } },
+    select: { courseId: true },
+  })
+  const courseIds = enrollments.map(e => e.courseId)
+  if (courseIds.length === 0) return { classRank: null, totalStudents: null, percentile: null }
+
+  // saare enrolled students in same courses
+  const allEnrollments = await prisma.enrollment.findMany({
+    where: { courseId: { in: courseIds }, status: { in: ['ACTIVE', 'COMPLETED'] } },
+    select: { userId: true },
+    distinct: ['userId'],
+  })
+  const allStudentIds = allEnrollments.map(e => e.userId)
+  const totalStudents = allStudentIds.length
+
+  // har student ka overall score nikalo
+  const scores = await Promise.all(
+    allStudentIds.map(async (sid) => {
+      const attempts = await prisma.quizAttempt.findMany({
+        where: { userId: sid, quiz: { courseId: { in: courseIds } } },
+        select: { score: true },
+      })
+      const submissions = await prisma.assignmentSubmission.findMany({
+        where: { userId: sid, grade: { not: null }, assignment: { courseId: { in: courseIds } } },
+        select: { grade: true },
+      })
+      const allScores = [
+        ...attempts.map(a => a.score),
+        ...submissions.map(s => s.grade),
+      ]
+      const avg = allScores.length
+        ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+        : 0
+      return { userId: sid, avg }
+    })
+  )
+
+  // sort descending — rank = position
+  scores.sort((a, b) => b.avg - a.avg)
+  const classRank = scores.findIndex(s => s.userId === userId) + 1
+  const percentile = Math.round(((totalStudents - classRank) / totalStudents) * 100)
+
+  return { classRank, totalStudents, percentile }
+}
+
 
   const courseIds = enrollments.map((e) => e.courseId);
   if (courseIds.length === 0) {
@@ -67,4 +115,4 @@ const getMyResults = async (userId) => {
   };
 };
 
-module.exports = { getMyResults };
+module.exports = { getMyResults, getMyRank };
