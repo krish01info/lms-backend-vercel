@@ -1,4 +1,4 @@
-const dotenv = require("dotenv");
+﻿const dotenv = require("dotenv");
 dotenv.config();
 
 const config = {
@@ -67,13 +67,19 @@ const config = {
   clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
 };
 
-// Validate critical env variables
+// Validate critical env variables.
+// NOTE: process.exit(1) is intentionally NOT used here. In a serverless
+// environment (Vercel), calling process.exit() inside a module that gets
+// require()'d on every cold start kills the entire function invocation
+// before Express can even route the request - this produces a
+// FUNCTION_INVOCATION_FAILED 500 on every single route, including "/".
+// We log loudly instead, so the app still boots and can return a proper
+// JSON error from the routes/middleware that actually need the missing value.
 const required = ["DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
 
 required.forEach((key) => {
   if (!process.env[key]) {
     console.error(`❌ Missing required environment variable: ${key}`);
-    process.exit(1);
   }
 });
 
