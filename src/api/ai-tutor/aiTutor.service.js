@@ -1,7 +1,6 @@
 const { ChatGroq } = require("@langchain/groq");
 const { Embeddings } = require("@langchain/core/embeddings");
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
-const { PDFParse } = require("pdf-parse");
 const config = require("../../config");
 const { prisma } = require("../../config/database");
 const ROLES = require("../../constants/roles");
@@ -129,6 +128,7 @@ const getTitleFromFilename = (filename) => {
 };
 
 const extractPdfPages = async (buffer) => {
+  const { PDFParse } = require("pdf-parse");
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
