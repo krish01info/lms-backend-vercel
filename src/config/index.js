@@ -2,17 +2,21 @@
 dotenv.config();
 
 const config = {
+  // Server
   env: process.env.NODE_ENV || "development",
   port: process.env.PORT || 5000,
 
+  // Database
   databaseUrl: process.env.DATABASE_URL,
 
+  // Redis
   redis: {
     host: process.env.REDIS_HOST || "localhost",
     port: process.env.REDIS_PORT || 6379,
     password: process.env.REDIS_PASSWORD || null,
   },
 
+  // JWT
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
@@ -20,12 +24,14 @@ const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   },
 
+  // Google OAuth
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackUrl: process.env.GOOGLE_CALLBACK_URL,
   },
 
+  // AWS S3
   s3: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -33,12 +39,14 @@ const config = {
     bucket: process.env.AWS_S3_BUCKET,
   },
 
+  // Cloudinary
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
 
+  // AI Tutor / RAG
   ai: {
     groqApiKey: process.env.GROQ_API_KEY,
     jinaApiKey: process.env.JINA_API_KEY,
@@ -46,6 +54,7 @@ const config = {
     embeddingModel: process.env.JINA_EMBEDDING_MODEL || "jina-embeddings-v3",
   },
 
+  // Email
   email: {
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT || 587,
@@ -54,14 +63,22 @@ const config = {
     from: process.env.SMTP_FROM || "noreply@learnflow.com",
   },
 
+  // Client
   clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
 };
 
+// Validate critical env variables.
+// NOTE: process.exit(1) is intentionally NOT used here. This file is
+// require()'d by nearly every other module (including app.js) on every
+// cold start. Calling process.exit() here kills the entire serverless
+// function instantly, before api/index.js's own try/catch can run -
+// producing a raw platform-level crash (FUNCTION_INVOCATION_FAILED)
+// instead of a clean JSON error response. Throwing lets callers handle it.
 const required = ["DATABASE_URL", "JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length > 0) {
-  console.error(`falseMissing required environment variable(s): ${missing.join(", ")}`);
+  console.error(`Missing required environment variable(s): ${missing.join(", ")}`);
   throw new Error(`Missing required environment variable(s): ${missing.join(", ")}`);
 }
 

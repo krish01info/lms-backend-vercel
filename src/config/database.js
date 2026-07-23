@@ -9,17 +9,6 @@ const basePrisma = new PrismaClient({
       : ["error"],
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Notification auto-triggers (Prisma Client Extension)
-//
-// Instead of adding `notificationEmitter.emit(...)` calls inside every service
-// file, we hook straight into the Prisma client. Whenever an Enrollment row is
-// created (or re-activated via upsert), ENROLLMENT_CREATED fires automatically.
-// enrollments.service.js stays completely untouched — it just calls
-// prisma.enrollment.create/upsert like normal and has no idea notifications
-// exist. Add more model hooks here later (payment, assignmentSubmission,
-// quizAttempt, certificate) once those modules are actually built.
-// ─────────────────────────────────────────────────────────────────────────────
 const prisma = basePrisma.$extends({
   name: "notification-triggers",
   query: {
@@ -50,7 +39,14 @@ const connectDB = async () => {
     console.log("✅ PostgreSQL connected via Prisma");
   } catch (error) {
     console.error("❌ Database connection failed:", error.message);
-    process.exit(1);
+    // NOTE: process.exit(1) is intentionally NOT used here. connectDB() is
+    // called lazily on every cold start inside api/index.js's own
+    // try/catch middleware. process.exit() terminates the whole serverless
+    // function immediately - it does NOT let that outer try/catch run,
+    // so the request would just die as FUNCTION_INVOCATION_FAILED instead
+    // of getting the clean "Database connection failed" JSON response
+    // api/index.js is designed to send. Re-throwing lets the caller handle it.
+    throw error;
   }
 };
 
