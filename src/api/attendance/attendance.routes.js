@@ -4,7 +4,7 @@ const { protect, requireRole } = require("../../middleware/auth.middleware");
 const validate = require("../../middleware/validate.middleware");
 const ROLES = require("../../constants/roles");
 const { rosterQuerySchema, markAttendanceSchema, summaryQuerySchema } = require("./attendance.validation");
-const { getMyAttendance, getRoster, markAttendance, getSummary } = require("./attendance.controller");
+const { getMyAttendance, getRoster, markAttendance, getSummary, getAutoRoster } = require("./attendance.controller");
 
 // GET /api/v1/attendance/my — student, auto-derived from lesson activity.
 // UNCHANGED behavior from the original stub — just moved into
@@ -40,6 +40,18 @@ router.get(
   requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
   validate(summaryQuerySchema, "query"),
   getSummary
+);
+
+// GET /api/v1/attendance/auto-roster?courseId=&date= — instructor (owner)/admin.
+// Auto-computed attendance from lesson completion.  Shows every enrolled
+// student with PRESENT if they completed a lesson created on that date, or
+// ABSENT if they haven't yet.
+router.get(
+  "/auto-roster",
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN),
+  validate(rosterQuerySchema, "query"),
+  getAutoRoster
 );
 
 module.exports = router;

@@ -29,4 +29,12 @@ const getSummary = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, "Attendance summary fetched successfully."));
 });
 
-module.exports = { getMyAttendance, getRoster, markAttendance, getSummary };
+// GET /api/v1/attendance/auto-roster?courseId=&date= (instructor owner/admin)
+// Auto-computed attendance based on lesson completion.
+const getAutoRoster = asyncHandler(async (req, res) => {
+  const { courseId, date } = req.query;
+  const result = await AttendanceService.getAutoRoster(courseId, date, req.user.id, req.user.role);
+  return res.status(200).json(new ApiResponse(200, result, "Auto roster fetched successfully."));
+});
+
+module.exports = { getMyAttendance, getRoster, markAttendance, getSummary, getAutoRoster };

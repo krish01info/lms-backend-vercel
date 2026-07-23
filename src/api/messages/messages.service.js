@@ -23,6 +23,35 @@ const conversationSelect = {
   participant2: { select: { id: true, name: true, avatar: true } },
 };
 
+/**
+ * Find the shared course between two users (one teacher, one student).
+ * Looks for a course where userA is the instructor AND userB is enrolled,
+ * or vice versa. Returns the first matching course's id and title.
+ */
+async function findSharedCourse(userIdA, userIdB) {
+  // Try A=teacher, B=student
+  const courseAsInstructor = await prisma.course.findFirst({
+    where: {
+      instructorId: userIdA,
+      enrollments: { some: { userId: userIdB, status: "ACTIVE" } },
+    },
+    select: { id: true, title: true },
+  });
+  if (courseAsInstructor) return courseAsInstructor;
+
+  // Try B=teacher, A=student
+  const courseAsStudent = await prisma.course.findFirst({
+    where: {
+      instructorId: userIdB,
+      enrollments: { some: { userId: userIdA, status: "ACTIVE" } },
+    },
+    select: { id: true, title: true },
+  });
+  if (courseAsStudent) return courseAsStudent;
+
+  return null;
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 /**
@@ -56,6 +85,9 @@ async function enrichConversation(conv, currentUserId) {
     },
   });
 
+  // Find the shared course between the two participants
+  const course = await findSharedCourse(currentUserId, other.id);
+
   return {
     id: conv.id,
     participant: {
@@ -63,6 +95,9 @@ async function enrichConversation(conv, currentUserId) {
       name: other.name,
       avatar: other.avatar,
     },
+    course: course // { id, title } or null if no shared course
+      ? { id: course.id, title: course.title }
+      : null,
     lastMessage: lastMessage?.content ?? null,
     lastMessageAt: lastMessage?.createdAt ?? conv.lastMessageAt,
     lastMessageSenderId: lastMessage?.senderId ?? null,

@@ -31,7 +31,6 @@ const activityRoutes      = require("./api/activity/activity.routes");
 const aiTutorRoutes       = require("./api/ai-tutor/aiTutor.routes");
 const parentRoutes        = require("./api/parent/parent.routes");
 
-
 const app = express();
 
 app.use(passport.initialize());

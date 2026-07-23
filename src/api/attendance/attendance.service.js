@@ -201,9 +201,68 @@ const getMyAttendance = async (studentUserId) => {
   return { records, summary, overallPercentage };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /attendance/auto-roster?courseId=&date=  (instructor owner / admin)
+// Auto-computed attendance based on lesson completion. For the given course +
+// date, finds every lesson that was created on that date, then checks each
+// enrolled student's LessonProgress to see if they completed it.
+//
+// This gives teachers a view of "lesson-based" attendance separate from the
+// manual /attendance/roster and /attendance/mark system.
+// ─────────────────────────────────────────────────────────────────────────────
+const getAutoRoster = async (courseId, date, userId, role) => {
+  await assertCourseOwnership(courseId, userId, role);
+  const day = toDateOnly(date);
+
+  // Find all lessons created on this date for this course
+  const lessons = await prisma.lesson.findMany({
+    where: {
+      courseId,
+      createdAt: {
+        gte: day,
+        lt: new Date(day.getTime() + 24 * 60 * 60 * 1000),
+      },
+    },
+    select: { id: true, title: true },
+  });
+
+  const lessonIds = lessons.map((l) => l.id);
+
+  // Get active enrollees
+  const enrollments = await prisma.enrollment.findMany({
+    where: { courseId, status: { in: ACTIVE_ENROLLMENT_STATUSES } },
+    select: { user: { select: { id: true, name: true, avatar: true } } },
+    orderBy: { user: { name: "asc" } },
+  });
+
+  // Get which students completed any of these lessons
+  const completedProgress = lessonIds.length > 0
+    ? await prisma.lessonProgress.findMany({
+        where: {
+          lessonId: { in: lessonIds },
+          completed: true,
+          userId: { in: enrollments.map((e) => e.user.id) },
+        },
+        select: { userId: true },
+      })
+    : [];
+
+  const completedUserIds = new Set(completedProgress.map((p) => p.userId));
+
+  const roster = enrollments.map(({ user }) => ({
+    userId: user.id,
+    name: user.name,
+    avatar: user.avatar,
+    status: completedUserIds.has(user.id) ? "PRESENT" : "ABSENT",
+  }));
+
+  return { lessons, roster, date: day };
+};
+
 module.exports = {
   getRoster,
   markAttendance,
   getSummary,
   getMyAttendance,
+  getAutoRoster,
 };

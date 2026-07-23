@@ -136,6 +136,8 @@ router.get('/:courseId',
 
 // PATCH /api/v1/progress/:lessonId
 // Marks a lesson as complete / updates watched time (called when student finishes a video).
+// When a lesson is completed, an AttendanceRecord is auto-created as PRESENT for the
+// lesson's date, so teachers can see auto-attendance in their roster.
 router.patch('/:lessonId',
   protect,
   asyncHandler(async (req, res) => {
@@ -156,6 +158,42 @@ router.patch('/:lessonId',
         watchedTime: watchedTime || 0,
       }
     })
+
+    // ── Auto-create attendance record on completion ──────────────────
+    // If the student completed this lesson, mark them PRESENT for the
+    // lesson's created-at date.  Uses the course instructor as markedById
+    // so the record appears as auto-generated.
+    if (completed === true || (completed === undefined && progress.completed)) {
+      const lesson = await prisma.lesson.findUnique({
+        where: { id: lessonId },
+        select: { courseId: true, createdAt: true, course: { select: { instructorId: true } } },
+      })
+
+      if (lesson) {
+        // Normalise the lesson's createdAt to a UTC-midnight Date (same
+        // pattern as attendance.service.js for the @db.Date column).
+        const d = new Date(lesson.createdAt)
+        const lessonDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+
+        await prisma.attendanceRecord.upsert({
+          where: {
+            courseId_userId_date: {
+              courseId: lesson.courseId,
+              userId,
+              date: lessonDate,
+            },
+          },
+          update: { status: 'PRESENT', markedById: lesson.course.instructorId },
+          create: {
+            courseId: lesson.courseId,
+            userId,
+            date: lessonDate,
+            status: 'PRESENT',
+            markedById: lesson.course.instructorId,
+          },
+        })
+      }
+    }
 
     return res.status(200).json(
       new ApiResponse(200, { progress }, 'Progress updated successfully.')
