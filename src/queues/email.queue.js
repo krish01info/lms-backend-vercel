@@ -22,13 +22,16 @@ let emailQueue = null;
         password: config.redis.password || undefined,
       },
     });
-    // Verify connection within 3s — if it fails, Bull will emit an error event
-    await emailQueue.isReady();
+
+    // Register the error handler BEFORE isReady() — Bull starts connecting
+    // immediately on construction; if Redis is down the error fires before
+    // isReady() settles and needs a handler attached to not hit the default.
     emailQueue.on("error", (err) => {
-      console.warn("⚠️  email queue error:", err.message);
-      // Don't null out emailQueue — Bull handles reconnection internally;
-      // just log so we know something's up.
+      // Bull handles reconnection internally — just log so we know.
+      console.log("📧 email queue note:", err.message);
     });
+
+    await emailQueue.isReady();
     console.log("📧 Bull email queue initialized (Redis connected)");
   } catch (err) {
     // Redis is unavailable (not configured, wrong host, refused, etc.)

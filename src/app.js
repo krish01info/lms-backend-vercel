@@ -34,6 +34,13 @@ const feesRoutes = require("./api/fees/fees.routes");
 const adminRoutes = require("./api/admin/admin.routes");
 const app = express();
 
+// ─── Proxy Trust ──────────────────────────────────────────────────────────────
+// Required for Vercel / Render / any reverse-proxy deployment.
+// Without this, express-rate-limit throws a ValidationError when it sees
+// X-Forwarded-For headers set by the proxy ("The 'X-Forwarded-For' header is
+// set but the Express 'trust proxy' setting is false").
+app.set("trust proxy", 1);
+
 app.use(passport.initialize());
 
 // ─── Security & Compression ───────────────────────────────────────────────────
