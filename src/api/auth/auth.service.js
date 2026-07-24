@@ -10,7 +10,8 @@ const normalizeRole = (role) => {
     student: "STUDENT", 
     teacher: "INSTRUCTOR", 
     instructor: "INSTRUCTOR", 
-    admin: "ADMIN" 
+    admin: "ADMIN",
+    parent: "PARENT",
   };
   return map[role?.toLowerCase()] || "STUDENT";
 };
