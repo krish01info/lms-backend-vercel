@@ -249,23 +249,49 @@ const getPayments = async ({ status, page = 1, limit = 20 } = {}) => {
 };
 
 // GET /admin/payments/stats — total revenue, pending, this month
+//
+// "pending" used to be sum(Payment.amount) where status = PENDING. In
+// practice the only place that ever writes a Payment row is the student
+// checkout flow (payments.service.js#createPayment), and it always sends
+// status: "COMPLETED" directly — there's no gateway webhook flow that lands
+// a row in PENDING first. So a literal PENDING sum is always ~0, even when
+// plenty of students are enrolled and haven't paid.
+//
+// Fixed to mirror the same "derived fee" logic as fees.routes.js#/my: an
+// enrollment without a matching COMPLETED payment for that course counts as
+// outstanding, for the enrolled course's price. That's the real pending-dues
+// number admins care about.
 const getPaymentStats = async () => {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const [totalRevenue, pendingAmount, monthRevenue] = await Promise.all([
+  const [totalRevenue, monthRevenue, enrollments, completedPayments] = await Promise.all([
     prisma.payment.aggregate({ where: { status: "COMPLETED" }, _sum: { amount: true } }),
-    prisma.payment.aggregate({ where: { status: "PENDING" }, _sum: { amount: true } }),
     prisma.payment.aggregate({
       where: { status: "COMPLETED", createdAt: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
+    prisma.enrollment.findMany({
+      select: { userId: true, courseId: true, course: { select: { price: true } } },
+    }),
+    prisma.payment.findMany({
+      where: { status: "COMPLETED" },
+      select: { userId: true, courseId: true },
+    }),
   ]);
+
+  const paidSet = new Set(completedPayments.map((p) => `${p.userId}:${p.courseId}`));
+
+  const pending = enrollments.reduce((sum, e) => {
+    const key = `${e.userId}:${e.courseId}`;
+    if (paidSet.has(key)) return sum; // already paid for this course
+    return sum + Number(e.course.price);
+  }, 0);
 
   return {
     totalRevenue: totalRevenue._sum.amount || 0,
-    pending: pendingAmount._sum.amount || 0,
+    pending,
     thisMonth: monthRevenue._sum.amount || 0,
   };
 };

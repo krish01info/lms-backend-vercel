@@ -8,9 +8,44 @@ const asyncHandler = require("../../utils/asyncHandler");
 const ApiError = require("../../utils/ApiError");
 const ApiResponse = require("../../utils/ApiResponse");
 const { prisma } = require("../../config/database");
+const NotificationService = require("../notifications/notifications.service");
 // ─── POST /api/v1/parent/children ─────────────────────────────────────────────
 // Parent sends a link request to a student using their invite code.
 // This creates a PENDING ParentLinkRequest — the student must accept it.
+// ─── GET /api/v1/parent/children/:childId/notifications ──────────────────────
+// Notifications belonging to a linked child — read-only for the parent.
+router.get(
+  "/children/:childId/notifications",
+  protect,
+  requireRole(ROLES.PARENT),
+  asyncHandler(async (req, res) => {
+    const parentId = req.user.id;
+    const { childId } = req.params;
+    const { page = 1, limit = 20, unread } = req.query;
+
+    // Verify parent-student link — gracefully handle missing table
+    try {
+      const link = await prisma.parentStudentLink.findUnique({
+        where: { parentId_studentId: { parentId, studentId: childId } },
+      });
+      if (!link) throw new ApiError(403, "You are not authorized to view this student's notifications.");
+    } catch (err) {
+      if (err instanceof ApiError) throw err;
+      throw new ApiError(503, "Parent link feature is not yet available. Please run database migration.");
+    }
+
+    const result = await NotificationService.getUserNotifications(childId, {
+      page,
+      limit,
+      unreadOnly: unread === "true",
+    });
+
+    return res.status(200).json(
+      new ApiResponse(200, result, "Child notifications fetched successfully.")
+    );
+  })
+);
+
 router.post(
   "/children",
   protect,
