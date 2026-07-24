@@ -1,19 +1,38 @@
 const app = require("../src/app");
 const { connectDB } = require("../src/config/database");
 
-// Connect to database lazily before processing any request in serverless environment
+// ─── Lazy Database Connection (Serverless-Safe) ─────────────────────────────
+// Uses a mutex (connectingPromise) to prevent multiple concurrent cold starts
+// from all trying to connect to the database simultaneously.
 let isConnected = false;
+let connectingPromise = null;
+
 app.use(async (req, res, next) => {
-  if (!isConnected) {
+  if (isConnected) return next();
+
+  if (connectingPromise) {
+    // Another request is already connecting — wait for it
     try {
-      await connectDB();
-      isConnected = true;
+      await connectingPromise;
+      return next();
     } catch (err) {
-      console.error("Database lazy connection failed:", err.message);
       return res.status(500).json({ error: "Database connection failed" });
     }
   }
-  next();
+
+  connectingPromise = (async () => {
+    await connectDB();
+    isConnected = true;
+  })();
+
+  try {
+    await connectingPromise;
+    next();
+  } catch (err) {
+    console.error("Database lazy connection failed:", err.message);
+    connectingPromise = null; // allow retry on next request
+    return res.status(500).json({ error: "Database connection failed" });
+  }
 });
 
 module.exports = app;
