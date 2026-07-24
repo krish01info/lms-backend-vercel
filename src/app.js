@@ -32,8 +32,15 @@ const activityRoutes      = require("./api/activity/activity.routes");
 const aiTutorRoutes       = require("./api/ai-tutor/aiTutor.routes");
 const parentRoutes        = require("./api/parent/parent.routes");
 const feesRoutes = require("./api/fees/fees.routes");
-
+const adminRoutes = require("./api/admin/admin.routes");
 const app = express();
+
+// ─── Proxy Trust ──────────────────────────────────────────────────────────────
+// Required for Vercel / Render / any reverse-proxy deployment.
+// Without this, express-rate-limit throws a ValidationError when it sees
+// X-Forwarded-For headers set by the proxy ("The 'X-Forwarded-For' header is
+// set but the Express 'trust proxy' setting is false").
+app.set("trust proxy", 1);
 
 app.use(passport.initialize());
 
@@ -123,7 +130,7 @@ app.use(`${API}/activity`,      activityRoutes);
 app.use(`${API}/ai-tutor`,      aiTutorRoutes);
 app.use(`${API}/parent`,        parentRoutes);
 app.use(`${API}/fees`, feesRoutes);
-
+app.use(`${API}/admin`, adminRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

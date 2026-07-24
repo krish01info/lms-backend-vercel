@@ -4,7 +4,7 @@ const registerSchema = Joi.object({
   name: Joi.string().trim().min(2).max(100).required(),
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(6).max(72).required(),
-  role: Joi.string().valid("student", "teacher", "instructor", "admin").default("student"),
+  role: Joi.string().valid("student", "teacher", "instructor", "admin", "parent").default("student"),
 });
 
 const loginSchema = Joi.object({

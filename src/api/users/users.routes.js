@@ -178,15 +178,23 @@ studentRouter.get(
   protect,
   requireRole(ROLES.STUDENT),
   asyncHandler(async (req, res) => {
-    const requests = await prisma.parentLinkRequest.findMany({
-      where: { childId: req.user.id, status: "PENDING" },
-      include: {
-        parent: {
-          select: { id: true, name: true, email: true, avatar: true },
+    let requests = [];
+    try {
+      requests = await prisma.parentLinkRequest.findMany({
+        where: { childId: req.user.id, status: "PENDING" },
+        include: {
+          parent: {
+            select: { id: true, name: true, email: true, avatar: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (err) {
+      // Gracefully handle missing parent_link_requests table (migration not yet applied)
+      // The table might not exist in production if migrations haven't been deployed.
+      console.warn("⚠️  Could not fetch parent link requests (table may not exist):", err.message);
+      requests = [];
+    }
 
     return res.status(200).json(
       new ApiResponse(200, { requests }, "Pending link requests fetched.")
