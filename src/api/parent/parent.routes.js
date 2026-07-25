@@ -52,33 +52,27 @@ router.post(
   requireRole(ROLES.PARENT),
   asyncHandler(async (req, res) => {
     const parentId = req.user.id;
-    const { inviteCode } = req.body;
+    const { studentEmail } = req.body;
 
-    if (!inviteCode) throw new ApiError(400, "inviteCode is required.");
+    if (!studentEmail) throw new ApiError(400, "studentEmail is required.");
 
-    const code = inviteCode.trim().toUpperCase();
+    const email = studentEmail.trim().toLowerCase();
 
-    // Find student by invite code
+    // Find student by email
     const child = await prisma.user.findUnique({
-      where: { parentInviteCode: code },
+      where: { email },
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
         avatar: true,
-        parentInviteExpiry: true,
       },
     });
 
-    if (!child) throw new ApiError(404, "Invalid invite code. Ask your child to generate a new one.");
+    if (!child) throw new ApiError(404, "No account found with that email address.");
     if (child.role !== ROLES.STUDENT) throw new ApiError(400, "The linked account must be a Student.");
     if (child.id === parentId) throw new ApiError(400, "You cannot link your own account as a child.");
-
-    // Check expiry
-    if (!child.parentInviteExpiry || child.parentInviteExpiry < new Date()) {
-      throw new ApiError(410, "This invite code has expired. Ask your child to generate a new one.");
-    }
 
     // Check if already confirmed — gracefully skip if parent_student_links table doesn't exist yet
     let existingLink = null;

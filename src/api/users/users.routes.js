@@ -235,19 +235,21 @@ studentRouter.post(
         create: { parentId: request.parentId, studentId: request.childId },
         update: {},
       });
-      // Clear invite code (one-time use)
-      await prisma.user.update({
-        where: { id: req.user.id },
-        data: { parentInviteCode: null, parentInviteExpiry: null },
-      });
+      // Clear invite code (one-time use) — optional, kept for safety
+      try {
+        await prisma.user.update({
+          where: { id: req.user.id },
+          data: { parentInviteCode: null, parentInviteExpiry: null },
+        });
+      } catch (_) { /* field may not exist on older schema */ }
     }
 
     // Update request status
-    await prisma.parentStudentLink.upsert({
-        where: { parentId_studentId: { parentId: request.parentId, studentId: request.childId } },
-        create: { parentId: request.parentId, studentId: request.childId },
-        update: {},
-      });
+    await prisma.parentLinkRequest.update({
+      where: { id: requestId },
+      data: { status: action === "accept" ? "ACCEPTED" : "REJECTED" },
+    });
+
     const message = action === "accept"
       ? `You are now linked to ${request.parent.name}'s account.`
       : "Link request rejected.";
