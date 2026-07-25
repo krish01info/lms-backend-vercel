@@ -71,6 +71,19 @@ function normalizeParticipants(a, b) {
 async function enrichConversation(conv, currentUserId) {
   const other = conv.participant1Id === currentUserId ? conv.participant2 : conv.participant1;
 
+  if (!other) {
+    return {
+      id: conv.id,
+      participant: { id: "unknown", name: "Unknown User", avatar: null },
+      course: null,
+      lastMessage: null,
+      lastMessageAt: conv.lastMessageAt,
+      lastMessageSenderId: null,
+      unreadCount: 0,
+      createdAt: conv.createdAt,
+    };
+  }
+
   const lastMessage = await prisma.message.findFirst({
     where: { conversationId: conv.id },
     orderBy: { createdAt: "desc" },
@@ -92,8 +105,8 @@ async function enrichConversation(conv, currentUserId) {
     id: conv.id,
     participant: {
       id: other.id,
-      name: other.name,
-      avatar: other.avatar,
+      name: other.name || "User",
+      avatar: other.avatar || null,
     },
     course: course // { id, title } or null if no shared course
       ? { id: course.id, title: course.title }
