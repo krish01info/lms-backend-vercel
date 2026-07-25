@@ -11,12 +11,11 @@ const NotificationService = require("./notifications.service");
 const getMyNotifications = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, unread } = req.query;
 
-  const result = await NotificationService.getUserNotifications(req.user.id, {
+   const result = await NotificationService.getUserNotifications(req.user.id, {
     page,
     limit,
-    unreadOnly: unread === "true",
+    unreadOnly: unread === true,
   });
-
   return res.status(HTTP_STATUS.OK).json(
     new ApiResponse(HTTP_STATUS.OK, result, "Notifications fetched successfully")
   );
