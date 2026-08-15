@@ -79,7 +79,12 @@ const uploadResources = async (courseId, files, userId, role) => {
 
   const created = [];
   for (const file of files) {
-    const uploadResult = await uploadToCloudinary(file.buffer, "courses/resources", "auto");
+    // Cloudinary's "auto" detection frequently misclassifies PDFs as
+    // "image" resource type, producing broken/non-viewable delivery URLs.
+    // Only true image files should use "image"; everything else (PDF,
+    // docx, pptx, etc.) needs "raw" to be served/downloaded correctly.
+    const resourceType = file.mimetype.startsWith("image/") ? "image" : "raw";
+    const uploadResult = await uploadToCloudinary(file.buffer, "courses/resources", resourceType);
     const resource = await prisma.resource.create({
       data: {
         title: file.originalname,
