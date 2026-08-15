@@ -84,7 +84,7 @@ const uploadResources = async (courseId, files, userId, role) => {
     // Only true image files should use "image"; everything else (PDF,
     // docx, pptx, etc.) needs "raw" to be served/downloaded correctly.
     const resourceType = file.mimetype.startsWith("image/") ? "image" : "raw";
-    const uploadResult = await uploadToCloudinary(file.buffer, "courses/resources", resourceType);
+    const uploadResult = await uploadToCloudinary(file.buffer, "courses/resources", resourceType, file.originalname);
     const resource = await prisma.resource.create({
       data: {
         title: file.originalname,

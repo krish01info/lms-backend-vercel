@@ -16,12 +16,19 @@ cloudinary.config({
  * @param {string} [resourceType='auto'] - Type of resource: 'image', 'video', 'raw', or 'auto'
  * @returns {Promise<object>} Cloudinary upload response object
  */
-const uploadToCloudinary = (fileBuffer, folder, resourceType = "auto") => {
+const uploadToCloudinary = (fileBuffer, folder, resourceType = "auto", originalFilename) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: `learnflow/${folder}`,
         resource_type: resourceType,
+        // For "raw" files (PDFs, docs, etc.), Cloudinary needs the
+        // extension present in the delivery URL itself to serve the
+        // asset correctly — without this, uploads get a random public_id
+        // with no extension, and delivery requests return HTTP 400.
+        use_filename: true,
+        unique_filename: true,
+        filename_override: originalFilename,
       },
       (error, result) => {
         if (error) {
@@ -32,7 +39,6 @@ const uploadToCloudinary = (fileBuffer, folder, resourceType = "auto") => {
       }
     );
 
-    // Write file buffer to the writeable stream
     uploadStream.end(fileBuffer);
   });
 };
