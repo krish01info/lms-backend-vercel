@@ -41,5 +41,27 @@ const issueCertificate = async ({ userId, courseId, fileUrl }) => {
     create: { userId, courseId, fileUrl },
   });
 };
+const ROLES = require("../../constants/roles");
 
-module.exports = { getMyCertificates, getCertificateById, issueCertificate };
+/** Instructor/admin view: which students in a course already have a certificate. */
+const getCertificatesForCourse = async (courseId, userId, role) => {
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, instructorId: true },
+  });
+  if (!course) throw new ApiError(404, "Course not found.");
+
+  const isPrivileged = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(role);
+  if (!isPrivileged && course.instructorId !== userId) {
+    throw new ApiError(403, "You do not have permission to view this course.");
+  }
+
+  return prisma.certificate.findMany({
+    where: { courseId },
+    select: { userId: true, id: true, issuedAt: true },
+  });
+};
+
+module.exports = { getMyCertificates, getCertificateById, issueCertificate, getCertificatesForCourse };
+
+

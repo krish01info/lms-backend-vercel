@@ -18,4 +18,10 @@ const issueCertificate = asyncHandler(async (req, res) => {
   res.status(201).json(new ApiResponse(201, { certificate }, "Certificate issued successfully."));
 });
 
-module.exports = { getMyCertificates, getCertificateById, issueCertificate };
+
+const getCertificatesForCourse = asyncHandler(async (req, res) => {
+  const certificates = await certificatesService.getCertificatesForCourse(req.params.courseId, req.user.id, req.user.role);
+  res.status(200).json(new ApiResponse(200, { certificates }, "Course certificates fetched successfully."));
+});
+
+module.exports = { getMyCertificates, getCertificateById, issueCertificate, getCertificatesForCourse };

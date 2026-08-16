@@ -3,7 +3,8 @@ const router = express.Router()
 const asyncHandler = require("../../utils/asyncHandler")
 const ApiResponse = require("../../utils/ApiResponse")
 const ApiError = require("../../utils/ApiError")
-const { protect } = require("../../middleware/auth.middleware")
+const { protect, requireRole } = require("../../middleware/auth.middleware")
+const ROLES = require("../../constants/roles")
 const { prisma } = require('../../config/database')
 
 // GET /api/v1/progress/my
@@ -14,7 +15,6 @@ router.get('/my',
   asyncHandler(async (req, res) => {
     const userId = req.user.id
 
-    // Get all active enrollments for this user, with course + lesson counts
     const enrollments = await prisma.enrollment.findMany({
       where: { userId, status: 'ACTIVE' },
       include: {
@@ -29,7 +29,6 @@ router.get('/my',
       }
     })
 
-    // Get all lesson progress records for this user in one query
     const lessonProgressRecords = await prisma.lessonProgress.findMany({
       where: { userId, completed: true },
       select: { lessonId: true }
@@ -65,8 +64,6 @@ router.get('/my/weekly-hours',
   asyncHandler(async (req, res) => {
     const userId = req.user.id
 
-    // Build the 7-day window using UTC consistently, so it matches
-    // the UTC dates produced by updatedAt.toISOString() below.
     const now = new Date()
     const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6))
 
@@ -76,7 +73,7 @@ router.get('/my/weekly-hours',
     })
 
     const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const buckets = new Map() // 'YYYY-MM-DD' -> seconds
+    const buckets = new Map()
     for (let i = 0; i < 7; i++) {
       const d = new Date(Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate() + i))
       buckets.set(d.toISOString().slice(0, 10), 0)
@@ -94,6 +91,67 @@ router.get('/my/weekly-hours',
 
     return res.status(200).json(
       new ApiResponse(200, { weeklyHours }, 'Weekly study hours fetched successfully.')
+    )
+  })
+)
+
+// GET /api/v1/progress/course/:courseId/students
+// Instructor/admin view: per-student lesson completion % for a course.
+// Used by the Student Performance page to gate certificate issuance —
+// a certificate should only be issuable once a student has completed
+// 100% of the course's lessons.
+router.get('/course/:courseId/students',
+  protect,
+  requireRole(ROLES.INSTRUCTOR, ROLES.ADMIN, ROLES.SUPER_ADMIN),
+  asyncHandler(async (req, res) => {
+    const { courseId } = req.params
+
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, instructorId: true, lessons: { select: { id: true } } },
+    })
+    if (!course) throw new ApiError(404, 'Course not found.')
+
+    const isPrivileged = [ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(req.user.role)
+    if (!isPrivileged && course.instructorId !== req.user.id) {
+      throw new ApiError(403, 'You do not have permission to view this course.')
+    }
+
+    const totalLessons = course.lessons.length
+    const lessonIds = course.lessons.map(l => l.id)
+
+    const enrollments = await prisma.enrollment.findMany({
+      where: { courseId, status: 'ACTIVE' },
+      include: { user: { select: { id: true, name: true } } },
+    })
+
+    const progressRecords = totalLessons > 0
+      ? await prisma.lessonProgress.findMany({
+          where: { lessonId: { in: lessonIds }, completed: true },
+          select: { userId: true, lessonId: true },
+        })
+      : []
+
+    const completedByUser = new Map()
+    for (const p of progressRecords) {
+      if (!completedByUser.has(p.userId)) completedByUser.set(p.userId, new Set())
+      completedByUser.get(p.userId).add(p.lessonId)
+    }
+
+    const students = enrollments.map((enr) => {
+      const completedCount = completedByUser.get(enr.user.id)?.size ?? 0
+      const percentage = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
+      return {
+        userId: enr.user.id,
+        name: enr.user.name,
+        completedLessons: completedCount,
+        totalLessons,
+        percentage,
+      }
+    })
+
+    return res.status(200).json(
+      new ApiResponse(200, { students }, 'Course completion fetched successfully.')
     )
   })
 )
@@ -159,10 +217,6 @@ router.patch('/:lessonId',
       }
     })
 
-    // ── Auto-create attendance record on completion ──────────────────
-    // If the student completed this lesson, mark them PRESENT for the
-    // lesson's created-at date.  Uses the course instructor as markedById
-    // so the record appears as auto-generated.
     if (completed === true || (completed === undefined && progress.completed)) {
       const lesson = await prisma.lesson.findUnique({
         where: { id: lessonId },
@@ -170,8 +224,6 @@ router.patch('/:lessonId',
       })
 
       if (lesson) {
-        // Normalise the lesson's createdAt to a UTC-midnight Date (same
-        // pattern as attendance.service.js for the @db.Date column).
         const d = new Date(lesson.createdAt)
         const lessonDate = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
 
