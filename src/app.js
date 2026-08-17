@@ -22,6 +22,7 @@ const questionsRoutes   = require("./api/quizzes/questions.routes");
 const progressRoutes    = require("./api/progress/progress.routes");
 const resultsRoutes     = require("./api/results/results.routes");
 const certificateRoutes = require("./api/certificates/certificates.routes");
+const discussionRoutes  = require("./api/discussions/discussions.routes");
 const attendanceRoutes  = require("./api/attendance/attendance.routes");
 const gradebookRoutes   = require("./api/gradebook/gradebook.routes");
 const notificationRoutes  = require("./api/notifications/notifications.routes");
@@ -131,6 +132,9 @@ app.use(`${API}/ai-tutor`,      aiTutorRoutes);
 app.use(`${API}/parent`,        parentRoutes);
 app.use(`${API}/fees`, feesRoutes);
 app.use(`${API}/admin`, adminRoutes);
+app.use(`${API}/certificates`, certificateRoutes);
+app.use(`${API}/discussions`,  discussionRoutes);
+app.use(`${API}/attendance`,   attendanceRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
