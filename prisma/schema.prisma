@@ -132,6 +132,9 @@ model User {
   parentLinksAsStudent  ParentStudentLink[] @relation("StudentLinks")
   parentRequestsSent     ParentLinkRequest[] @relation("ParentRequests")
   childRequestsReceived  ParentLinkRequest[] @relation("ChildRequests")
+  discussionThreads DiscussionThread[] @relation("DiscussionThreadAuthor")
+  discussionReplies DiscussionReply[]  @relation("DiscussionReplyAuthor")
+  discussionLikes   DiscussionLike[]   @relation("DiscussionLikeUser")
 
   @@map("users")
 }
@@ -529,4 +532,39 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@map("admin_audit_logs")
+}
+
+model DiscussionThread {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  authorId  String
+  author    User     @relation("DiscussionThreadAuthor", fields: [authorId], references: [id])
+  tags      String[]
+  pinned    Boolean  @default(false)
+  replies   DiscussionReply[]
+  likes     DiscussionLike[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DiscussionReply {
+  id        String   @id @default(uuid())
+  threadId  String
+  thread    DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("DiscussionReplyAuthor", fields: [authorId], references: [id])
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model DiscussionLike {
+  id        String   @id @default(uuid())
+  threadId  String
+  thread    DiscussionThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("DiscussionLikeUser", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([threadId, userId])
 }
