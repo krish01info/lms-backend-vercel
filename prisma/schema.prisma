@@ -186,6 +186,7 @@ model Course {
   resources    Resource[]
   attendanceRecords AttendanceRecord[]
   announcements Announcement[]
+  discussionThreads DiscussionThread[] @relation("CourseDiscussions")
   @@map("courses")
 }
 
@@ -540,12 +541,16 @@ model DiscussionThread {
   content   String
   authorId  String
   author    User     @relation("DiscussionThreadAuthor", fields: [authorId], references: [id])
+  courseId  String
+  course    Course   @relation("CourseDiscussions", fields: [courseId], references: [id], onDelete: Cascade)
   tags      String[]
   pinned    Boolean  @default(false)
   replies   DiscussionReply[]
   likes     DiscussionLike[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([courseId])
 }
 
 model DiscussionReply {
